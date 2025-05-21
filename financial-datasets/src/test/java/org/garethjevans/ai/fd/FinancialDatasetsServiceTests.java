@@ -17,7 +17,7 @@ class FinancialDatasetsServiceTests {
   void canQueryAppleFacts() {
     assertThat(financialDatasetsService).isNotNull();
 
-    FinancialDatasetsService.CompanyFacts facts = financialDatasetsService.companyFacts("AAPL");
+    Facts facts = financialDatasetsService.companyFacts("AAPL");
     assertThat(facts).isNotNull();
     assertThat(facts.name()).isEqualTo("Apple Inc");
   }
@@ -26,7 +26,7 @@ class FinancialDatasetsServiceTests {
   void canQueryAppleMetrics() {
     assertThat(financialDatasetsService).isNotNull();
 
-    List<FinancialDatasetsService.Metric> metrics =
+    List<Metrics> metrics =
         financialDatasetsService.getFinancialMetrics("AAPL", LocalDate.now(), Period.ttm, 5);
     assertThat(metrics).isNotNull();
   }
