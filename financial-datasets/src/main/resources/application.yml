@@ -1,0 +1,4 @@
+financial:
+  datasets:
+    url: https://api.financialdatasets.ai
+    api-key: ${FINANCIAL_DATASETS_API_KEY}
