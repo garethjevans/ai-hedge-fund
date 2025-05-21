@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.garethjevans.ai.fd.FinancialDatasetsService;
+import org.garethjevans.ai.fd.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -40,7 +41,7 @@ public class AgentWarrenBuffetTool {
     for (String ticker : tickers) {
       updateProgress(ticker, "Fetching financial metrics");
       List<FinancialDatasetsService.Metric> metrics =
-          financialDatasets.getFinancialMetrics(ticker, endDate, "ttm", 5);
+          financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 5);
 
       updateProgress(ticker, "Gathering financial line items");
       List<FinancialDatasetsService.LineItem> financialLineItems =
@@ -56,7 +57,7 @@ public class AgentWarrenBuffetTool {
                   "total_liabilities",
                   "dividends_and_other_cash_distributions",
                   "issuance_or_purchase_of_equity_shares"),
-              "ttm",
+                  Period.ttm,
               10);
 
       updateProgress(ticker, "Getting market cap");

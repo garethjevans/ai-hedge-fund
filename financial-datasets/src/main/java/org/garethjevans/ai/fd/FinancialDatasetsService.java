@@ -39,12 +39,10 @@ public class FinancialDatasetsService {
   private <T> T cacheAwareGet(Class<T> type, String uri, Object... uriVariables) {
     String cacheableUri = UriComponentsBuilder.fromUriString(uri).build(uriVariables).toString();
     LOGGER.info("cacheable uri: {}", cacheableUri);
-    String cacheKey = cacheableUri;
 
-    if (cacheEnabled && cacheService.keyExists(cacheKey)) {
-
+    if (cacheEnabled && cacheService.keyExists(cacheableUri)) {
       try {
-        T t = mapper.readValue(cacheService.get(cacheKey), type);
+        T t = mapper.readValue(cacheService.get(cacheableUri), type);
         LOGGER.info("got response body from cache: {}", t);
         return t;
       } catch (JsonProcessingException e) {
@@ -59,7 +57,9 @@ public class FinancialDatasetsService {
             .accept(MediaType.APPLICATION_JSON)
             .retrieve()
             .body(type);
+
     LOGGER.info("got response body: {}", t);
+
     try {
       cacheService.save(cacheableUri, mapper.writeValueAsString(t));
     } catch (JsonProcessingException e) {
@@ -68,12 +68,55 @@ public class FinancialDatasetsService {
     return t;
   }
 
+  private <T> T cacheAwarePost(Class<T> type, Object body, String uri, Object... uriVariables) {
+    String cacheableUri = UriComponentsBuilder.fromUriString(uri).build(uriVariables).toString();
+
+    String jsonBody = null;
+    try {
+      jsonBody = mapper.writeValueAsString(body);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+
+    LOGGER.info("cacheable uri: {}, with body {}", cacheableUri, jsonBody);
+    String cacheKey = cacheableUri + "-" + jsonBody;
+
+    if (cacheEnabled && cacheService.keyExists(cacheKey)) {
+      try {
+        T t = mapper.readValue(cacheService.get(cacheKey), type);
+        LOGGER.info("got response body from cache: {}", t);
+        return t;
+      } catch (JsonProcessingException e) {
+        LOGGER.warn("Unable to read value from cache", e);
+      }
+    }
+
+    T t =
+        this.client
+            .post()
+            .uri(uri, uriVariables)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .accept(MediaType.APPLICATION_JSON)
+            .retrieve()
+            .body(type);
+
+    LOGGER.info("got response body: {}", t);
+
+    try {
+      cacheService.save(cacheKey, mapper.writeValueAsString(t));
+    } catch (JsonProcessingException e) {
+      LOGGER.warn("Unable to persist response to cache", e);
+    }
+
+    return t;
+  }
+
   public CompanyFacts companyFacts(String ticker) {
     LOGGER.info("getting company facts for {}", ticker);
 
-    CompanyFactsHolder holder =
-        cacheAwareGet(CompanyFactsHolder.class, "/company/facts/?ticker={ticker}", ticker);
-    return holder.companyFacts();
+    return cacheAwareGet(CompanyFactsHolder.class, "/company/facts/?ticker={ticker}", ticker)
+        .companyFacts();
   }
 
   //  public List<Price> getPrices(String ticker, LocalDate startDate, LocalDate endDate) {
@@ -86,7 +129,7 @@ public class FinancialDatasetsService {
   //  }
 
   public List<Metric> getFinancialMetrics(
-      String ticker, LocalDate endDate, String period, int limit) {
+      String ticker, LocalDate endDate, Period period, int limit) {
     return cacheAwareGet(
             FinancialMetrics.class,
             "/financial-metrics/?ticker={ticker}&report_period_lte={endDate}&limit={limit}&period={period}",
@@ -98,19 +141,11 @@ public class FinancialDatasetsService {
   }
 
   public List<LineItem> searchLineItems(
-      String ticker, LocalDate endDate, List<String> items, String period, int limit) {
-    return this.client
-        .post()
-        .uri(
-            "/financials/search/line-items?ticker={ticker}&report_period_lte={endDate}&limit={limit}&period={period}",
-            ticker,
-            endDate,
-            limit,
-            period)
-        .body(new LineItemSearchRequest(List.of(ticker), items, endDate, period, limit))
-        .accept(MediaType.APPLICATION_JSON)
-        .retrieve()
-        .body(SearchLineItemResults.class)
+      String ticker, LocalDate endDate, List<String> items, Period period, int limit) {
+    return cacheAwarePost(
+            SearchLineItemResults.class,
+            new LineItemSearchRequest(List.of(ticker), items, period, limit),
+            "/financials/search/line-items")
         .lineItems();
   }
 
@@ -248,7 +283,7 @@ public class FinancialDatasetsService {
       return companyFacts(ticker).marketCap();
     }
 
-    return getFinancialMetrics(ticker, endDate, "ttm", 10).get(0).marketCap();
+    return getFinancialMetrics(ticker, endDate, Period.ttm, 10).get(0).marketCap();
   }
 
   //  @JsonIgnoreProperties(ignoreUnknown = true)
@@ -267,7 +302,7 @@ public class FinancialDatasetsService {
   //      @JsonProperty("time_milliseconds") BigInteger timeMillisecond) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record CompanyFactsHolder(@JsonProperty("company_facts") CompanyFacts companyFacts) {}
+  private record CompanyFactsHolder(@JsonProperty("company_facts") CompanyFacts companyFacts) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record CompanyFacts(
@@ -291,7 +326,7 @@ public class FinancialDatasetsService {
       @JsonProperty("weighted_average_shares") BigDecimal weightedAverageShares) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record FinancialMetrics(
+  private record FinancialMetrics(
       @JsonProperty("financial_metrics") List<Metric> financialMetrics) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -337,19 +372,19 @@ public class FinancialDatasetsService {
       @JsonProperty("book_value_per_share") BigDecimal bookValuePerShare,
       @JsonProperty("free_cash_flow_per_share") BigDecimal freeCashFlowPerShare) {}
 
-  public record LineItemSearchRequest(
+  private record LineItemSearchRequest(
       @JsonProperty("tickers") List<String> tickers,
       @JsonProperty("line_items") List<String> lineItems,
-      @JsonProperty("end_date") LocalDate endDate,
-      @JsonProperty("period") String period,
+      // @JsonProperty("end_date") LocalDate endDate,
+      @JsonProperty("period") Period period,
       @JsonProperty("limit") int limit) {}
 
-  public record SearchLineItemResults(@JsonProperty("search_results") List<LineItem> lineItems) {}
+  private record SearchLineItemResults(@JsonProperty("search_results") List<LineItem> lineItems) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record LineItem(
       @JsonProperty("ticker") String ticker,
       @JsonProperty("report_period") LocalDate reportPeriod,
-      @JsonProperty("period") String period,
+      @JsonProperty("period") Period period,
       @JsonProperty("currency") String currency) {}
 }
