@@ -35,7 +35,7 @@ class FinancialDatasetsServiceTests {
   void canQueryAppleLineItems() {
     assertThat(financialDatasetsService).isNotNull();
 
-    List<FinancialDatasetsService.LineItem> lineItems =
+    List<LineItem> lineItems =
         financialDatasetsService.searchLineItems(
             "AAPL",
             LocalDate.now(),
@@ -51,5 +51,10 @@ class FinancialDatasetsServiceTests {
             Period.ttm,
             10);
     assertThat(lineItems).isNotNull();
+
+    for (LineItem lineItem : lineItems) {
+      assertThat(lineItem.ticker()).isEqualTo("AAPL");
+      assertThat(lineItem.get("total_assets")).isNotNull();
+    }
   }
 }

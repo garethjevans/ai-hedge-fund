@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.garethjevans.ai.fd.FinancialDatasetsService;
+import org.garethjevans.ai.fd.LineItem;
 import org.garethjevans.ai.fd.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +45,7 @@ public class AgentWarrenBuffetTool {
           financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 5);
 
       updateProgress(ticker, "Gathering financial line items");
-      List<FinancialDatasetsService.LineItem> financialLineItems =
+      List<LineItem> financialLineItems =
           financialDatasets.searchLineItems(
               ticker,
               endDate,
@@ -57,7 +58,7 @@ public class AgentWarrenBuffetTool {
                   "total_liabilities",
                   "dividends_and_other_cash_distributions",
                   "issuance_or_purchase_of_equity_shares"),
-                  Period.ttm,
+              Period.ttm,
               10);
 
       updateProgress(ticker, "Getting market cap");
@@ -218,7 +219,7 @@ public class AgentWarrenBuffetTool {
     return null;
   }
 
-  public Result analyzeConsistency(List<FinancialDatasetsService.LineItem> financialLineItems) {
+  public Result analyzeConsistency(List<LineItem> financialLineItems) {
     if (financialLineItems.size() < 4) {
       return new Result(new BigDecimal(0), null, "Insufficient historical data");
     }
@@ -309,7 +310,7 @@ public class AgentWarrenBuffetTool {
 
   //
   //
-  public Result analyzeManagementQuality(List<FinancialDatasetsService.LineItem> lineItems) {
+  public Result analyzeManagementQuality(List<LineItem> lineItems) {
     //            """
     //    Checks for share dilution or consistent buybacks, and some dividend track record.
     //    A simplified approach:
@@ -356,7 +357,7 @@ public class AgentWarrenBuffetTool {
     return null;
   }
 
-  public Result calculateOwnerEarnings(List<FinancialDatasetsService.LineItem> lineItems) {
+  public Result calculateOwnerEarnings(List<LineItem> lineItems) {
     //            """Calculate owner earnings (Buffett's preferred measure of true earnings power).
     //    Owner Earnings = Net Income + Depreciation - Maintenance CapEx"""
     //            if not financial_line_items or len(financial_line_items) < 1:
@@ -387,8 +388,7 @@ public class AgentWarrenBuffetTool {
 
   //
   //
-  public IntrinsicValueAnalysisResult calculateIntrinsicValue(
-      List<FinancialDatasetsService.LineItem> lineItems) {
+  public IntrinsicValueAnalysisResult calculateIntrinsicValue(List<LineItem> lineItems) {
     //            """Calculate intrinsic value using DCF with owner earnings."""
     //            if not financial_line_items:
     //            return {"intrinsic_value": None, "details": ["Insufficient data for valuation"]}

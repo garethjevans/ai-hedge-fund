@@ -6,10 +6,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -30,10 +33,29 @@ public class FinancialDatasetsService {
       boolean cacheEnabled,
       ObjectMapper mapper,
       CacheService cacheService) {
-    this.client = builder.baseUrl(url).defaultHeader("X-API-KEY", apiKey).build();
+    this.client =
+        builder
+            .baseUrl(url)
+            .defaultHeader("X-API-KEY", apiKey)
+            .requestInterceptor(
+                (request, body, execution) -> {
+                  logRequest(request, body);
+                  var response = execution.execute(request, body);
+                  // logResponse(request, response);
+                  return response;
+                })
+            .build();
     this.cacheEnabled = cacheEnabled;
     this.mapper = mapper;
     this.cacheService = cacheService;
+  }
+
+  private void logRequest(HttpRequest request, byte[] body) {
+    LOGGER.info("Request: {} {}", request.getMethod(), request.getURI());
+    // logHeaders(request.getHeaders());
+    if (body != null && body.length > 0) {
+      LOGGER.info("Request body: {}", new String(body, StandardCharsets.UTF_8));
+    }
   }
 
   private <T> T cacheAwareGet(Class<T> type, String uri, Object... uriVariables) {
@@ -146,7 +168,10 @@ public class FinancialDatasetsService {
             SearchLineItemResults.class,
             new LineItemSearchRequest(List.of(ticker), items, period, limit),
             "/financials/search/line-items")
-        .lineItems();
+        .lineItems()
+        .stream()
+        .map(LineItem::new)
+        .toList();
   }
 
   //
@@ -379,12 +404,13 @@ public class FinancialDatasetsService {
       @JsonProperty("period") Period period,
       @JsonProperty("limit") int limit) {}
 
-  private record SearchLineItemResults(@JsonProperty("search_results") List<LineItem> lineItems) {}
+  private record SearchLineItemResults(
+      @JsonProperty("search_results") List<Map<String, Object>> lineItems) {}
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
-  public record LineItem(
-      @JsonProperty("ticker") String ticker,
-      @JsonProperty("report_period") LocalDate reportPeriod,
-      @JsonProperty("period") Period period,
-      @JsonProperty("currency") String currency) {}
+  //  @JsonIgnoreProperties(ignoreUnknown = true)
+  //  public record LineItem(
+  //      @JsonProperty("ticker") String ticker,
+  //      @JsonProperty("report_period") LocalDate reportPeriod,
+  //      @JsonProperty("period") Period period,
+  //      @JsonProperty("currency") String currency) {}
 }
