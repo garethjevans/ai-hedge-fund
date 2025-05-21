@@ -31,8 +31,11 @@ public class AgentWarrenBuffettTool {
     this.financialDatasets = financialDatasets;
   }
 
-  @Tool(name = "warren_buffett_analysis", description = "Performs stock analysis using Warren Buffett's methods by ticker")
-  public Map<String, AnalysisResult> performAnalysisForTicker(@ToolParam(description = "Ticker to perform analysis for") String ticker) {
+  @Tool(
+      name = "warren_buffett_analysis",
+      description = "Performs stock analysis using Warren Buffett's methods by ticker")
+  public Map<String, AnalysisResult> performAnalysisForTicker(
+      @ToolParam(description = "Ticker to perform analysis for") String ticker) {
     LOGGER.info("Analyzes stocks using Buffett's principles and LLM reasoning.");
 
     //    data = state["data"]
@@ -113,10 +116,7 @@ public class AgentWarrenBuffettTool {
         signal = Signal.neutral;
       }
 
-      analysisData.put(t, new AnalysisResult(
-              signal,
-              totalScore,
-              maxPossibleScore));
+      analysisData.put(t, new AnalysisResult(signal, totalScore, maxPossibleScore));
 
       //            # Combine all analysis results
       //    analysis_data[t] = {
