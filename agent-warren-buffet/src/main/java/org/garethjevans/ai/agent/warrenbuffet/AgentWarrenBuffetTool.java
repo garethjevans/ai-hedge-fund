@@ -8,6 +8,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.garethjevans.ai.fd.FinancialDatasetsService;
+import org.garethjevans.ai.fd.LineItem;
+import org.garethjevans.ai.fd.Metrics;
+import org.garethjevans.ai.fd.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -39,11 +42,10 @@ public class AgentWarrenBuffetTool {
 
     for (String ticker : tickers) {
       updateProgress(ticker, "Fetching financial metrics");
-      List<FinancialDatasetsService.Metric> metrics =
-          financialDatasets.getFinancialMetrics(ticker, endDate, "ttm", 5);
+      List<Metrics> metrics = financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 5);
 
       updateProgress(ticker, "Gathering financial line items");
-      List<FinancialDatasetsService.LineItem> financialLineItems =
+      List<LineItem> financialLineItems =
           financialDatasets.searchLineItems(
               ticker,
               endDate,
@@ -56,7 +58,7 @@ public class AgentWarrenBuffetTool {
                   "total_liabilities",
                   "dividends_and_other_cash_distributions",
                   "issuance_or_purchase_of_equity_shares"),
-              "ttm",
+              Period.ttm,
               10);
 
       updateProgress(ticker, "Getting market cap");
@@ -160,64 +162,70 @@ public class AgentWarrenBuffetTool {
     }
   }
 
-  public Result analyzeFundamentals(List<FinancialDatasetsService.Metric> metrics) {
-    //    def analyze_fundamentals(metrics: list) -> dict[str, any]:
-    //            """Analyze company fundamentals based on Buffett's criteria."""
-    //            if not metrics:
-    //            return {"score": 0, "details": "Insufficient fundamental data"}
-    //
-    //    latest_metrics = metrics[0]
-    //
-    //    score = 0
-    //    reasoning = []
-    //
-    //            # Check ROE (Return on Equity)
-    //    if latest_metrics.return_on_equity and latest_metrics.return_on_equity > 0.15:  # 15% ROE
-    // threshold
-    //    score += 2
-    //            reasoning.append(f"Strong ROE of {latest_metrics.return_on_equity:.1%}")
-    //    elif latest_metrics.return_on_equity:
-    //            reasoning.append(f"Weak ROE of {latest_metrics.return_on_equity:.1%}")
-    //            else:
-    //            reasoning.append("ROE data not available")
-    //
-    //            # Check Debt to Equity
-    //    if latest_metrics.debt_to_equity and latest_metrics.debt_to_equity < 0.5:
-    //    score += 2
-    //            reasoning.append("Conservative debt levels")
-    //    elif latest_metrics.debt_to_equity:
-    //            reasoning.append(f"High debt to equity ratio of
-    // {latest_metrics.debt_to_equity:.1f}")
-    //            else:
-    //            reasoning.append("Debt to equity data not available")
-    //
-    //            # Check Operating Margin
-    //    if latest_metrics.operating_margin and latest_metrics.operating_margin > 0.15:
-    //    score += 2
-    //            reasoning.append("Strong operating margins")
-    //    elif latest_metrics.operating_margin:
-    //            reasoning.append(f"Weak operating margin of
-    // {latest_metrics.operating_margin:.1%}")
-    //            else:
-    //            reasoning.append("Operating margin data not available")
-    //
-    //            # Check Current Ratio
-    //    if latest_metrics.current_ratio and latest_metrics.current_ratio > 1.5:
-    //    score += 1
-    //            reasoning.append("Good liquidity position")
-    //    elif latest_metrics.current_ratio:
-    //            reasoning.append(f"Weak liquidity with current ratio of
-    // {latest_metrics.current_ratio:.1f}")
-    //            else:
-    //            reasoning.append("Current ratio data not available")
-    //
-    //            return {"score": score, "details": "; ".join(reasoning), "metrics":
-    // latest_metrics.model_dump()}
-    //
-    return null;
+  /**
+   * Analyze company fundamentals based on Buffett's criteria.
+   *
+   * @param metrics
+   * @return
+   */
+  public FundamentalsResult analyzeFundamentals(List<Metrics> metrics) {
+    if (metrics == null || metrics.isEmpty()) {
+      return new FundamentalsResult(BigDecimal.ZERO, "Insufficient fundamental data", null);
+    }
+
+    Metrics latestMetrics = metrics.get(0);
+
+    int score = 0;
+    List<String> reasoning = new ArrayList<>();
+
+    if (latestMetrics.returnOnEquity() != null
+        && latestMetrics.returnOnEquity().compareTo(new BigDecimal("0.15")) > 0) {
+      score += 2;
+      reasoning.add("Strong ROE of " + latestMetrics.returnOnEquity());
+    } else if (latestMetrics.returnOnEquity() != null) {
+      reasoning.add("Weak ROE of " + latestMetrics.returnOnEquity());
+    } else {
+      reasoning.add("ROE data not available");
+    }
+
+    // Check Debt to Equity
+    if (latestMetrics.debtToEquity() != null
+        && latestMetrics.debtToEquity().compareTo(new BigDecimal("0.5")) < 0) {
+      score += 2;
+      reasoning.add("Conservative debt levels");
+    } else if (latestMetrics.debtToEquity() != null) {
+      reasoning.add("High debt to equity ratio of " + latestMetrics.debtToEquity());
+    } else {
+      reasoning.add("Debt to equity data not available");
+    }
+
+    // Check Operating Margin
+    if (latestMetrics.operatingMargin() != null
+        && latestMetrics.operatingMargin().compareTo(new BigDecimal("0.15")) > 0) {
+      score += 2;
+      reasoning.add("Strong operating margins");
+    } else if (latestMetrics.operatingMargin() != null) {
+      reasoning.add("Weak operating margin of " + latestMetrics.operatingMargin());
+    } else {
+      reasoning.add("Operating margin data not available");
+    }
+
+    //  Check Current Ratio
+    if (latestMetrics.currentRatio() != null
+        && latestMetrics.currentRatio().compareTo(new BigDecimal("1.5")) > 0) {
+      score += 1;
+      reasoning.add("Good liquidity position");
+    } else if (latestMetrics.currentRatio() != null) {
+      reasoning.add("Weak liquidity with current ratio of " + latestMetrics.currentRatio());
+    } else {
+      reasoning.add("Current ratio data not available");
+    }
+
+    return new FundamentalsResult(
+        new BigDecimal(score), String.join("; ", reasoning), latestMetrics);
   }
 
-  public Result analyzeConsistency(List<FinancialDatasetsService.LineItem> financialLineItems) {
+  public Result analyzeConsistency(List<LineItem> financialLineItems) {
     if (financialLineItems.size() < 4) {
       return new Result(new BigDecimal(0), null, "Insufficient historical data");
     }
@@ -246,7 +254,7 @@ public class AgentWarrenBuffetTool {
     //            else:
     //            reasoning.append("Insufficient earnings data for trend analysis")
     //
-    return new Result(new BigDecimal(score), null, String.join(", ", reasoning));
+    return new Result(new BigDecimal(score), null, String.join("; ", reasoning));
   }
 
   /**
@@ -257,7 +265,7 @@ public class AgentWarrenBuffetTool {
    * @param metrics
    * @return
    */
-  public Result analyzeMoat(List<FinancialDatasetsService.Metric> metrics) {
+  public Result analyzeMoat(List<Metrics> metrics) {
     if (metrics.size() < 3) {
       return new Result(
           new BigDecimal(0), new BigDecimal(3), "Insufficient data for moat analysis");
@@ -306,15 +314,18 @@ public class AgentWarrenBuffetTool {
     return new Result(new BigDecimal(moatScore), new BigDecimal(3), String.join(", ", reasoning));
   }
 
-  //
-  //
-  public Result analyzeManagementQuality(List<FinancialDatasetsService.LineItem> lineItems) {
+  /**
+   * Checks for share dilution or consistent buybacks, and some dividend track record. A simplified
+   * approach: - if there's net share repurchase or stable share count, it suggests management might
+   * be shareholder-friendly. - if there's a big new issuance, it might be a negative sign
+   * (dilution).
+   *
+   * @param lineItems
+   * @return
+   */
+  public Result analyzeManagementQuality(List<LineItem> lineItems) {
     //            """
-    //    Checks for share dilution or consistent buybacks, and some dividend track record.
-    //    A simplified approach:
-    //      - if there's net share repurchase or stable share count, it suggests management
-    //        might be shareholder-friendly.
-    //      - if there's a big new issuance, it might be a negative sign (dilution).
+
     //    """
     //            if not financial_line_items:
     //            return {"score": 0, "max_score": 2, "details": "Insufficient data for management
@@ -355,7 +366,7 @@ public class AgentWarrenBuffetTool {
     return null;
   }
 
-  public Result calculateOwnerEarnings(List<FinancialDatasetsService.LineItem> lineItems) {
+  public Result calculateOwnerEarnings(List<LineItem> lineItems) {
     //            """Calculate owner earnings (Buffett's preferred measure of true earnings power).
     //    Owner Earnings = Net Income + Depreciation - Maintenance CapEx"""
     //            if not financial_line_items or len(financial_line_items) < 1:
@@ -386,8 +397,7 @@ public class AgentWarrenBuffetTool {
 
   //
   //
-  public IntrinsicValueAnalysisResult calculateIntrinsicValue(
-      List<FinancialDatasetsService.LineItem> lineItems) {
+  public IntrinsicValueAnalysisResult calculateIntrinsicValue(List<LineItem> lineItems) {
     //            """Calculate intrinsic value using DCF with owner earnings."""
     //            if not financial_line_items:
     //            return {"intrinsic_value": None, "details": ["Insufficient data for valuation"]}
@@ -514,6 +524,11 @@ public class AgentWarrenBuffetTool {
 
   public record Result(BigDecimal score, BigDecimal maxScore, String details) {}
 
+  public record FundamentalsResult(
+      @JsonProperty("score") BigDecimal score,
+      @JsonProperty("details") String details,
+      @JsonProperty("metrics") Metrics metrics) {}
+
   public record AnalysisResult(
       @JsonProperty("signal") Signal signal,
       @JsonProperty("score") BigDecimal score,
@@ -523,7 +538,7 @@ public class AgentWarrenBuffetTool {
       @JsonProperty("intrinsic_value") BigDecimal intrinsicValue,
       @JsonProperty("owner_earnings") BigDecimal ownerEarnings,
       @JsonProperty("assumptions") Assumptions assumptions,
-      @JsonProperty("details") List<String> details) {}
+      @JsonProperty("details") String details) {}
 
   public record Assumptions(
       @JsonProperty("growth_rate") BigDecimal growthRate,

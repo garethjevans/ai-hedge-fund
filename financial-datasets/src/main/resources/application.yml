@@ -2,3 +2,6 @@ financial:
   datasets:
     url: https://api.financialdatasets.ai
     api-key: ${FINANCIAL_DATASETS_API_KEY}
+    cache:
+      enabled: true
+      dir: src/main/resources/cache
