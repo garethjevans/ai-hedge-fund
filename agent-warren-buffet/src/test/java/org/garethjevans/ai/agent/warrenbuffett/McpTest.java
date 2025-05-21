@@ -39,7 +39,7 @@ class McpTest {
 
     McpSchema.CallToolResult result =
         mcpClient.callTool(
-            new McpSchema.CallToolRequest("warren_buffett_analysis", "{\"ticker\":\"AAPL\"}"));
+            new McpSchema.CallToolRequest("warren_buffett_analysis", "{\"ticker\":\"AVGO\"}"));
 
     result.content().forEach(System.out::println);
   }

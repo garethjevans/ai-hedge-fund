@@ -364,86 +364,97 @@ public class AgentWarrenBuffettTool {
     return new Result(new BigDecimal(score), new BigDecimal(2), String.join("; ", reasoning));
   }
 
-  public Result calculateOwnerEarnings(List<LineItem> lineItems) {
-    //            """Calculate owner earnings (Buffett's preferred measure of true earnings power).
-    //    Owner Earnings = Net Income + Depreciation - Maintenance CapEx"""
-    //            if not financial_line_items or len(financial_line_items) < 1:
-    //            return {"owner_earnings": None, "details": ["Insufficient data for owner earnings
-    // calculation"]}
-    //
-    //    latest = financial_line_items[0]
-    //
-    //    net_income = latest.net_income
-    //            depreciation = latest.depreciation_and_amortization
-    //    capex = latest.capital_expenditure
-    //
-    //    if not all([net_income, depreciation, capex]):
-    //            return {"owner_earnings": None, "details": ["Missing components for owner earnings
-    // calculation"]}
-    //
-    //    # Estimate maintenance capex (typically 70-80% of total capex)
-    //    maintenance_capex = capex * 0.75
-    //    owner_earnings = net_income + depreciation - maintenance_capex
-    //
-    //    return {
-    //        "owner_earnings": owner_earnings,
-    //                "components": {"net_income": net_income, "depreciation": depreciation,
-    // "maintenance_capex": maintenance_capex},
-    //        "details": ["Owner earnings calculated successfully"],
-    return null;
+  /**
+   * Calculate owner earnings (Buffett's preferred measure of true earnings power). Owner Earnings =
+   * Net Income + Depreciation - Maintenance CapEx
+   *
+   * @param lineItems
+   * @return
+   */
+  public OwnerEarningsResult calculateOwnerEarnings(List<LineItem> lineItems) {
+    if (lineItems == null || lineItems.isEmpty()) {
+      return new OwnerEarningsResult(
+          null, null, "Insufficient data for owner earnings calculation");
+    }
+
+    LineItem latest = lineItems.get(0);
+    BigDecimal netIncome = latest.get("net_income");
+    BigDecimal depreciation = latest.get("depreciation");
+    BigDecimal capex = latest.get("capex");
+
+    if (netIncome == null || depreciation == null || capex == null) {
+      return new OwnerEarningsResult(
+          null, null, "Missing components for owner earnings calculation");
+    }
+
+    // Estimate maintenance capex (typically 70-80% of total capex)
+    BigDecimal maintenanceCapex = capex.multiply(new BigDecimal("0.75"));
+    BigDecimal ownerEarnings = netIncome.add(depreciation).add(maintenanceCapex.negate());
+
+    return new OwnerEarningsResult(
+        ownerEarnings,
+        new Components(netIncome, depreciation, maintenanceCapex),
+        "Owner earnings calculated successfully");
   }
 
-  //
-  //
+  /**
+   * Calculate intrinsic value using DCF with owner earnings.
+   *
+   * @param lineItems
+   * @return
+   */
   public IntrinsicValueAnalysisResult calculateIntrinsicValue(List<LineItem> lineItems) {
-    //            """Calculate intrinsic value using DCF with owner earnings."""
-    //            if not financial_line_items:
-    //            return {"intrinsic_value": None, "details": ["Insufficient data for valuation"]}
-    //
-    //    # Calculate owner earnings
-    //            earnings_data = calculate_owner_earnings(financial_line_items)
-    //    if not earnings_data["owner_earnings"]:
-    //            return {"intrinsic_value": None, "details": earnings_data["details"]}
-    //
-    //    owner_earnings = earnings_data["owner_earnings"]
-    //
-    //            # Get current market data
-    //    latest_financial_line_items = financial_line_items[0]
-    //    shares_outstanding = latest_financial_line_items.outstanding_shares
-    //
-    //    if not shares_outstanding:
-    //            return {"intrinsic_value": None, "details": ["Missing shares outstanding data"]}
-    //
-    //    # Buffett's DCF assumptions (conservative approach)
-    //    growth_rate = 0.05  # Conservative 5% growth
-    //            discount_rate = 0.09  # Typical ~9% discount rate
-    //    terminal_multiple = 12
-    //    projection_years = 10
-    //
-    //            # Sum of discounted future owner earnings
-    //    future_value = 0
-    //            for year in range(1, projection_years + 1):
-    //    future_earnings = owner_earnings * (1 + growth_rate) ** year
-    //            present_value = future_earnings / (1 + discount_rate) ** year
-    //    future_value += present_value
-    //
-    //    # Terminal value
-    //    terminal_value = (owner_earnings * (1 + growth_rate) ** projection_years *
-    // terminal_multiple) / ((1 + discount_rate) ** projection_years)
-    //
-    //    intrinsic_value = future_value + terminal_value
-    //
-    //    return {
-    //        "intrinsic_value": intrinsic_value,
-    //                "owner_earnings": owner_earnings,
-    //                "assumptions": {
-    //            "growth_rate": growth_rate,
-    //                    "discount_rate": discount_rate,
-    //                    "terminal_multiple": terminal_multiple,
-    //                    "projection_years": projection_years,
-    //        },
-    //        "details": ["Intrinsic value calculated using DCF model with owner earnings"],
-    return null;
+    if (lineItems == null || lineItems.isEmpty()) {
+      return new IntrinsicValueAnalysisResult(null, null, null, "Insufficient data for valuation");
+    }
+
+    // Calculate owner earnings
+    OwnerEarningsResult earningsData = calculateOwnerEarnings(lineItems);
+    if (earningsData.ownerEarnings() == null) {
+      return new IntrinsicValueAnalysisResult(null, null, null, earningsData.details());
+    }
+
+    BigDecimal ownerEarnings = earningsData.ownerEarnings();
+
+    // Get current market data
+    LineItem latest = lineItems.get(0);
+    BigDecimal sharesOutstanding = latest.get("outstanding_shares");
+
+    if (sharesOutstanding == null) {
+      return new IntrinsicValueAnalysisResult(null, null, null, "Missing shares outstanding data");
+    }
+
+    // Buffett's DCF assumptions (conservative approach)
+    // Conservative 5% growth
+    BigDecimal growthRate = new BigDecimal("0.05");
+    // Typical ~9% discount rate
+    BigDecimal discountRate = new BigDecimal("0.09");
+    BigDecimal terminalMultiple = new BigDecimal(12);
+    int projectionYears = 10;
+
+    // Sum of discounted future owner earnings
+    BigDecimal futureValue = BigDecimal.ZERO;
+
+    for (int year = 1; year < projectionYears + 1; year++) {
+      BigDecimal futureEarnings = ownerEarnings.multiply(BigDecimal.ONE.add(growthRate).pow(year));
+      BigDecimal presentValue = futureEarnings.divide(BigDecimal.ONE.add(discountRate)).pow(year);
+      futureValue = futureValue.add(presentValue);
+    }
+
+    BigDecimal terminalValue =
+        ownerEarnings
+            .multiply(BigDecimal.ONE.add(growthRate).pow(projectionYears))
+            .multiply(terminalMultiple)
+            .divide(BigDecimal.ONE.add(discountRate))
+            .pow(projectionYears);
+
+    BigDecimal intrinsicValue = futureValue.add(terminalValue);
+
+    return new IntrinsicValueAnalysisResult(
+        intrinsicValue,
+        ownerEarnings,
+        new Assumptions(growthRate, discountRate, terminalMultiple, projectionYears),
+        "Intrinsic value calculated using DCF model with owner earnings");
   }
 
   //            # Default fallback signal in case parsing fails
@@ -522,6 +533,16 @@ public class AgentWarrenBuffettTool {
 
   public record Result(BigDecimal score, BigDecimal maxScore, String details) {}
 
+  public record OwnerEarningsResult(
+      @JsonProperty("owner_earnings") BigDecimal ownerEarnings,
+      @JsonProperty("components") Components components,
+      @JsonProperty("details") String details) {}
+
+  public record Components(
+      @JsonProperty("net_income") BigDecimal netIncome,
+      @JsonProperty("depreciation") BigDecimal depreciation,
+      @JsonProperty("maintenance_capex") BigDecimal maintenanceCapex) {}
+
   public record FundamentalsResult(
       @JsonProperty("score") BigDecimal score,
       @JsonProperty("details") String details,
@@ -549,7 +570,7 @@ public class AgentWarrenBuffettTool {
       @JsonProperty("growth_rate") BigDecimal growthRate,
       @JsonProperty("discount_rate") BigDecimal discountRate,
       @JsonProperty("terminal_multiple") BigDecimal terminalMultiple,
-      @JsonProperty("projection_years") BigDecimal projectionYears) {}
+      @JsonProperty("projection_years") int projectionYears) {}
 
   public record WarrenBuffetSignal(
       @JsonProperty("signal") Signal signal,
