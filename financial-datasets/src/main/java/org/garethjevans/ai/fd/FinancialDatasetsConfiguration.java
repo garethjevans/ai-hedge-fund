@@ -9,6 +9,11 @@ import org.springframework.web.client.RestClient;
 public class FinancialDatasetsConfiguration {
 
   @Bean
+  public RestClient.Builder restClientBuilder() {
+    return RestClient.builder();
+  }
+
+  @Bean
   public FinancialDatasetsService financialDatasetsService(
       RestClient.Builder builder,
       @Value("${financial.datasets.url}") String url,
