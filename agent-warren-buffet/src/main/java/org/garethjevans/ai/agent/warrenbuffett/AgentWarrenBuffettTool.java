@@ -116,22 +116,20 @@ public class AgentWarrenBuffettTool {
         signal = Signal.neutral;
       }
 
-      analysisData.put(t, new AnalysisResult(signal, totalScore, maxPossibleScore));
+      analysisData.put(
+          t,
+          new AnalysisResult(
+              signal,
+              totalScore,
+              maxPossibleScore,
+              fundamentalAnalysis,
+              consistencyAnalysis,
+              moatAnalysis,
+              mgmtAnalysis,
+              intrinsicValueAnalysis,
+              marketCap,
+              marginOfSafety));
 
-      //            # Combine all analysis results
-      //    analysis_data[t] = {
-      //        "signal": signal,
-      //                "score": total_score,
-      //                "max_score": max_possible_score,
-      //                "fundamental_analysis": fundamental_analysis,
-      //                "consistency_analysis": consistency_analysis,
-      //                "moat_analysis": moat_analysis,
-      //                "management_analysis": mgmt_analysis,
-      //                "intrinsic_value_analysis": intrinsic_value_analysis,
-      //                "market_cap": market_cap,
-      //                "margin_of_safety": margin_of_safety,
-      //    }
-      //
       updateProgress(t, "Generating Warren Buffett analysis");
 
       return analysisData;
@@ -332,46 +330,38 @@ public class AgentWarrenBuffettTool {
    * @return
    */
   public Result analyzeManagementQuality(List<LineItem> lineItems) {
-    //            """
+    if (lineItems == null || lineItems.isEmpty()) {
+      return new Result(
+          new BigDecimal(0), new BigDecimal(2), "Insufficient data for management analysis");
+    }
 
-    //    """
-    //            if not financial_line_items:
-    //            return {"score": 0, "max_score": 2, "details": "Insufficient data for management
-    // analysis"}
-    //
-    //    reasoning = []
-    //    mgmt_score = 0
-    //
-    //    latest = financial_line_items[0]
-    //            if hasattr(latest, "issuance_or_purchase_of_equity_shares") and
-    // latest.issuance_or_purchase_of_equity_shares and latest.issuance_or_purchase_of_equity_shares
-    // < 0:
-    //            # Negative means the company spent money on buybacks
-    //    mgmt_score += 1
-    //            reasoning.append("Company has been repurchasing shares (shareholder-friendly)")
-    //
-    //            if hasattr(latest, "issuance_or_purchase_of_equity_shares") and
-    // latest.issuance_or_purchase_of_equity_shares and latest.issuance_or_purchase_of_equity_shares
-    // > 0:
-    //            # Positive issuance means new shares => possible dilution
-    //        reasoning.append("Recent common stock issuance (potential dilution)")
-    //                else:
-    //                reasoning.append("No significant new stock issuance detected")
-    //
-    //                # Check for any dividends
-    //    if hasattr(latest, "dividends_and_other_cash_distributions") and
-    // latest.dividends_and_other_cash_distributions and
-    // latest.dividends_and_other_cash_distributions < 0:
-    //    mgmt_score += 1
-    //            reasoning.append("Company has a track record of paying dividends")
-    //            else:
-    //            reasoning.append("No or minimal dividends paid")
-    //
-    //            return {
-    //        "score": mgmt_score,
-    //                "max_score": 2,
-    //                "details": "; ".join(reasoning),
-    return null;
+    int score = 0;
+    List<String> reasoning = new ArrayList<>();
+
+    LineItem latest = lineItems.get(0);
+    if (latest.get("issuance_or_purchase_of_equity_shares") != null
+        && latest.get("issuance_or_purchase_of_equity_shares").compareTo(BigDecimal.ZERO) < 0) {
+      // Negative means the company spent money on buybacks
+      score += 1;
+      reasoning.add("Company has been repurchasing shares (shareholder-friendly)");
+    }
+
+    if (latest.get("issuance_or_purchase_of_equity_shares") != null
+        && latest.get("issuance_or_purchase_of_equity_shares").compareTo(BigDecimal.ZERO) > 0) {
+      reasoning.add("Recent common stock issuance (potential dilution)");
+    } else {
+      reasoning.add("No significant new stock issuance detected");
+    }
+
+    if (latest.get("dividends_and_other_cash_distributions") != null
+        && latest.get("dividends_and_other_cash_distributions").compareTo(BigDecimal.ZERO) < 0) {
+      score += 1;
+      reasoning.add("Company has a track record of paying dividends");
+    } else {
+      reasoning.add("No or minimal dividends paid");
+    }
+
+    return new Result(new BigDecimal(score), new BigDecimal(2), String.join("; ", reasoning));
   }
 
   public Result calculateOwnerEarnings(List<LineItem> lineItems) {
@@ -540,7 +530,14 @@ public class AgentWarrenBuffettTool {
   public record AnalysisResult(
       @JsonProperty("signal") Signal signal,
       @JsonProperty("score") BigDecimal score,
-      @JsonProperty("max_score") BigDecimal maxScore) {}
+      @JsonProperty("max_score") BigDecimal maxScore,
+      @JsonProperty("fundamental_analysis") FundamentalsResult fundamentalAnalysis,
+      @JsonProperty("consistency_analysis") Result consistencyAnalysis,
+      @JsonProperty("moat_analysis") Result moatAnalysis,
+      @JsonProperty("management_analysis") Result managementAnalysis,
+      @JsonProperty("intrinsic_value_analysis") IntrinsicValueAnalysisResult intrinsicValueAnalysis,
+      @JsonProperty("market_cap") BigDecimal marketCap,
+      @JsonProperty("margin_of_safety") BigDecimal marginOfSafety) {}
 
   public record IntrinsicValueAnalysisResult(
       @JsonProperty("intrinsic_value") BigDecimal intrinsicValue,
