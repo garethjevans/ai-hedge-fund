@@ -2,6 +2,8 @@ package org.garethjevans.ai.fd;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
@@ -10,73 +12,93 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
 public class FinancialDatasetsService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FinancialDatasetsService.class);
 
   private final RestClient client;
+  private final ObjectMapper mapper;
+  private final boolean cacheEnabled;
+  private final CacheService cacheService;
 
-  public FinancialDatasetsService(RestClient.Builder builder, String url, String apiKey) {
+  public FinancialDatasetsService(
+      RestClient.Builder builder,
+      String url,
+      String apiKey,
+      boolean cacheEnabled,
+      ObjectMapper mapper,
+      CacheService cacheService) {
     this.client = builder.baseUrl(url).defaultHeader("X-API-KEY", apiKey).build();
+    this.cacheEnabled = cacheEnabled;
+    this.mapper = mapper;
+    this.cacheService = cacheService;
+  }
+
+  private <T> T cacheAwareGet(Class<T> type, String uri, Object... uriVariables) {
+    String cacheableUri = UriComponentsBuilder.fromUriString(uri).build(uriVariables).toString();
+    LOGGER.info("cacheable uri: {}", cacheableUri);
+    String cacheKey = cacheableUri;
+
+    if (cacheEnabled && cacheService.keyExists(cacheKey)) {
+
+      try {
+        T t = mapper.readValue(cacheService.get(cacheKey), type);
+        LOGGER.info("got response body from cache: {}", t);
+        return t;
+      } catch (JsonProcessingException e) {
+        LOGGER.warn("Unable to read value from cache", e);
+      }
+    }
+
+    T t =
+        this.client
+            .get()
+            .uri(uri, uriVariables)
+            .accept(MediaType.APPLICATION_JSON)
+            .retrieve()
+            .body(type);
+    LOGGER.info("got response body: {}", t);
+    try {
+      cacheService.save(cacheableUri, mapper.writeValueAsString(t));
+    } catch (JsonProcessingException e) {
+      LOGGER.warn("Unable to persist response to cache", e);
+    }
+    return t;
   }
 
   public CompanyFacts companyFacts(String ticker) {
     LOGGER.info("getting company facts for {}", ticker);
 
     CompanyFactsHolder holder =
-        this.client
-            .get()
-            .uri("/company/facts/?ticker={ticker}", ticker)
-            .accept(MediaType.APPLICATION_JSON)
-            .retrieve()
-            .body(CompanyFactsHolder.class);
-
-    LOGGER.info("got company facts holder {}", holder);
+        cacheAwareGet(CompanyFactsHolder.class, "/company/facts/?ticker={ticker}", ticker);
     return holder.companyFacts();
   }
 
-  public List<Price> getPrices(String ticker, LocalDate startDate, LocalDate endDate) {
-    LOGGER.info("getting prices for {} between {} and {}", ticker, startDate, endDate);
-    return this.client
-        .get()
-        .uri(
-            "/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={startDate}&end_date={endDate}",
-            ticker,
-            startDate,
-            endDate)
-        .accept(MediaType.APPLICATION_JSON)
-        .retrieve()
-        .body(PricesHolder.class)
-        .prices();
-  }
+  //  public List<Price> getPrices(String ticker, LocalDate startDate, LocalDate endDate) {
+  //    LOGGER.info("getting prices for {} between {} and {}", ticker, startDate, endDate);
+  //    return cacheAwareGet(PricesHolder.class,
+  // "/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={startDate}&end_date={endDate}",
+  //            ticker,
+  //            startDate,
+  //            endDate).prices();
+  //  }
 
   public List<Metric> getFinancialMetrics(
       String ticker, LocalDate endDate, String period, int limit) {
-    LOGGER.info(
-        "getting financial metrics for {} from {}, limit={}, period={}",
-        ticker,
-        endDate,
-        limit,
-        period);
-    return this.client
-        .get()
-        .uri(
+    return cacheAwareGet(
+            FinancialMetrics.class,
             "/financial-metrics/?ticker={ticker}&report_period_lte={endDate}&limit={limit}&period={period}",
             ticker,
             endDate,
             limit,
             period)
-        .accept(MediaType.APPLICATION_JSON)
-        .retrieve()
-        .body(FinancialMetrics.class)
         .financialMetrics();
   }
 
   public List<LineItem> searchLineItems(
       String ticker, LocalDate endDate, List<String> items, String period, int limit) {
-    LOGGER.info(
-        "getting line items for {} from {}, limit={}, period={}", ticker, endDate, limit, period);
     return this.client
         .post()
         .uri(
@@ -222,8 +244,6 @@ public class FinancialDatasetsService {
   //    return all_news
   //
   public BigDecimal getMarketCap(String ticker, LocalDate endDate) {
-    LOGGER.info("getting market cap for {}", ticker);
-
     if (endDate.isEqual(LocalDate.now())) {
       return companyFacts(ticker).marketCap();
     }
@@ -231,20 +251,20 @@ public class FinancialDatasetsService {
     return getFinancialMetrics(ticker, endDate, "ttm", 10).get(0).marketCap();
   }
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
-  public record PricesHolder(
-      @JsonProperty("prices") List<Price> prices,
-      @JsonProperty("next_page_url") String nextPriceUrl) {}
+  //  @JsonIgnoreProperties(ignoreUnknown = true)
+  //  public record PricesHolder(
+  //      @JsonProperty("prices") List<Price> prices,
+  //      @JsonProperty("next_page_url") String nextPriceUrl) {}
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
-  public record Price(
-      @JsonProperty("open") BigDecimal open,
-      @JsonProperty("close") BigDecimal close,
-      @JsonProperty("high") BigDecimal high,
-      @JsonProperty("low") BigDecimal low,
-      @JsonProperty("volume") BigDecimal volume,
-      @JsonProperty("time") String time,
-      @JsonProperty("time_milliseconds") BigInteger timeMillisecond) {}
+  //  @JsonIgnoreProperties(ignoreUnknown = true)
+  //  public record Price(
+  //      @JsonProperty("open") BigDecimal open,
+  //      @JsonProperty("close") BigDecimal close,
+  //      @JsonProperty("high") BigDecimal high,
+  //      @JsonProperty("low") BigDecimal low,
+  //      @JsonProperty("volume") BigDecimal volume,
+  //      @JsonProperty("time") String time,
+  //      @JsonProperty("time_milliseconds") BigInteger timeMillisecond) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record CompanyFactsHolder(@JsonProperty("company_facts") CompanyFacts companyFacts) {}
