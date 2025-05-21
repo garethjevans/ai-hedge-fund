@@ -3,12 +3,12 @@ server:
 
 spring:
   application:
-    name: mcp-server-financial-datasets
+    name: agent-warren-buffett
 
   ai:
     mcp:
       server:
-        name: mcp-server-financial-datasets
+        name: agent-warren-buffett
         version: 0.0.1-SNAPSHOT
         type: SYNC
         sse-message-endpoint: /mcp/messages
@@ -17,8 +17,3 @@ spring:
           resource: false
           prompt: false
           completion: false
-
-financial:
-  datasets:
-    url: https://api.financialdatasets.ai
-    api-key: ${FINANCIAL_DATASETS_API_KEY}
