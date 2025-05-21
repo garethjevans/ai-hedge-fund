@@ -1,4 +1,4 @@
-package org.garethjevans.ai.agent.warrenbuffet;
+package org.garethjevans.ai.agent.warrenbuffett;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
@@ -16,35 +16,38 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.template.st.StTemplateRenderer;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 
-public class AgentWarrenBuffetTool {
+public class AgentWarrenBuffettTool {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(AgentWarrenBuffetTool.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AgentWarrenBuffettTool.class);
 
   private static final String AGENT_NAME = "Warren Buffet Agent";
 
   private final FinancialDatasetsService financialDatasets;
 
-  public AgentWarrenBuffetTool(FinancialDatasetsService financialDatasets) {
+  public AgentWarrenBuffettTool(FinancialDatasetsService financialDatasets) {
     this.financialDatasets = financialDatasets;
   }
 
-  public void run() {
+  @Tool(name = "warren_buffett_analysis", description = "Performs stock analysis using Warren Buffett's methods by ticker")
+  public Map<String, AnalysisResult> performAnalysisForTicker(@ToolParam(description = "Ticker to perform analysis for") String ticker) {
     LOGGER.info("Analyzes stocks using Buffett's principles and LLM reasoning.");
 
     //    data = state["data"]
     LocalDate endDate = LocalDate.now();
-    List<String> tickers = List.of("AAPL");
+    List<String> tickers = List.of(ticker);
 
     Map<String, AnalysisResult> analysisData = new HashMap<>();
 
     //    buffett_analysis = {}
 
-    for (String ticker : tickers) {
-      updateProgress(ticker, "Fetching financial metrics");
+    for (String t : tickers) {
+      updateProgress(t, "Fetching financial metrics");
       List<Metrics> metrics = financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 5);
 
-      updateProgress(ticker, "Gathering financial line items");
+      updateProgress(t, "Gathering financial line items");
       List<LineItem> financialLineItems =
           financialDatasets.searchLineItems(
               ticker,
@@ -61,22 +64,22 @@ public class AgentWarrenBuffetTool {
               Period.ttm,
               10);
 
-      updateProgress(ticker, "Getting market cap");
+      updateProgress(t, "Getting market cap");
       var marketCap = financialDatasets.getMarketCap(ticker, endDate);
 
-      updateProgress(ticker, "Analyzing fundamentals");
+      updateProgress(t, "Analyzing fundamentals");
       var fundamentalAnalysis = analyzeFundamentals(metrics);
 
-      updateProgress(ticker, "Analyzing consistency");
+      updateProgress(t, "Analyzing consistency");
       var consistencyAnalysis = analyzeConsistency(financialLineItems);
 
-      updateProgress(ticker, "Analyzing moat");
+      updateProgress(t, "Analyzing moat");
       var moatAnalysis = analyzeMoat(metrics);
 
-      updateProgress(ticker, "Analyzing management quality");
+      updateProgress(t, "Analyzing management quality");
       var mgmtAnalysis = analyzeManagementQuality(financialLineItems);
 
-      updateProgress(ticker, "Calculating intrinsic value");
+      updateProgress(t, "Calculating intrinsic value");
       IntrinsicValueAnalysisResult intrinsicValueAnalysis =
           calculateIntrinsicValue(financialLineItems);
 
@@ -110,10 +113,13 @@ public class AgentWarrenBuffetTool {
         signal = Signal.neutral;
       }
 
-      analysisData.put(ticker, new AnalysisResult(signal, totalScore, maxPossibleScore));
+      analysisData.put(t, new AnalysisResult(
+              signal,
+              totalScore,
+              maxPossibleScore));
 
       //            # Combine all analysis results
-      //    analysis_data[ticker] = {
+      //    analysis_data[t] = {
       //        "signal": signal,
       //                "score": total_score,
       //                "max_score": max_possible_score,
@@ -126,8 +132,9 @@ public class AgentWarrenBuffetTool {
       //                "margin_of_safety": margin_of_safety,
       //    }
       //
-      updateProgress(ticker, "Generating Warren Buffett analysis");
+      updateProgress(t, "Generating Warren Buffett analysis");
 
+      return analysisData;
       // FIXME need to calculate the buffett output
       //    buffett_output = generate_buffett_output(
       //            ticker=ticker,
@@ -143,7 +150,7 @@ public class AgentWarrenBuffetTool {
       //        "reasoning": buffett_output.reasoning,
       //    }
       //
-      updateProgress(ticker, "Done");
+      // updateProgress(t, "Done");
       //
       //            # Create the message
       //            message = HumanMessage(content=json.dumps(buffett_analysis),
@@ -156,10 +163,11 @@ public class AgentWarrenBuffetTool {
       //    # Add the signal to the analyst_signals list
       //    state["data"]["analyst_signals"]["warren_buffett_agent"] = buffett_analysis
       //
-      updateProgress(null, "Done");
+      // updateProgress(null, "Done");
 
       //            return {"messages": [message], "data": state["data"]}
     }
+    return analysisData;
   }
 
   /**
