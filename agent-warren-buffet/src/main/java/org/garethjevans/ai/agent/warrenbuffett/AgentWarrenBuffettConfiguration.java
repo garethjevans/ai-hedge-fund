@@ -1,5 +1,6 @@
 package org.garethjevans.ai.agent.warrenbuffett;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.garethjevans.ai.fd.FinancialDatasetsService;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -10,12 +11,13 @@ import org.springframework.context.annotation.Configuration;
 public class AgentWarrenBuffettConfiguration {
 
   @Bean
-  public ToolCallbackProvider toolCallbackProvider(AgentWarrenBuffettTool tool) {
-    return MethodToolCallbackProvider.builder().toolObjects(tool).build();
+  public AgentWarrenBuffettTool agentWarrenBuffet(
+      FinancialDatasetsService service, ObjectMapper objectMapper) {
+    return new AgentWarrenBuffettTool(service, objectMapper);
   }
 
   @Bean
-  public AgentWarrenBuffettTool agentWarrenBuffet(FinancialDatasetsService service) {
-    return new AgentWarrenBuffettTool(service);
+  public ToolCallbackProvider toolCallbackProvider(AgentWarrenBuffettTool tool) {
+    return MethodToolCallbackProvider.builder().toolObjects(tool).build();
   }
 }

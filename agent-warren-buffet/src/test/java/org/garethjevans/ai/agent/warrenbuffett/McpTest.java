@@ -24,7 +24,7 @@ class McpTest {
     McpClientTransport transport =
         HttpClientSseClientTransport.builder("http://localhost:" + port).build();
     McpSyncClient mcpClient =
-        McpClient.sync(transport).requestTimeout(Duration.ofSeconds(5)).build();
+        McpClient.sync(transport).requestTimeout(Duration.ofSeconds(60)).build();
 
     mcpClient.initialize();
 

@@ -1,12 +1,16 @@
 package org.garethjevans.ai.agent.warrenbuffett;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import io.modelcontextprotocol.spec.McpSchema;
 import org.garethjevans.ai.fd.FinancialDatasetsService;
 import org.garethjevans.ai.fd.LineItem;
 import org.garethjevans.ai.fd.Metrics;
@@ -14,7 +18,16 @@ import org.garethjevans.ai.fd.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.mcp.McpToolUtils;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.template.st.StTemplateRenderer;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -26,25 +39,27 @@ public class AgentWarrenBuffettTool {
   private static final String AGENT_NAME = "Warren Buffet Agent";
 
   private final FinancialDatasetsService financialDatasets;
+  private final ObjectMapper objectMapper;
 
-  public AgentWarrenBuffettTool(FinancialDatasetsService financialDatasets) {
+  public AgentWarrenBuffettTool(
+      FinancialDatasetsService financialDatasets, ObjectMapper objectMapper) {
     this.financialDatasets = financialDatasets;
+    this.objectMapper = objectMapper;
   }
 
   @Tool(
       name = "warren_buffett_analysis",
       description = "Performs stock analysis using Warren Buffett's methods by ticker")
-  public Map<String, AnalysisResult> performAnalysisForTicker(
-      @ToolParam(description = "Ticker to perform analysis for") String ticker) {
+  public Map<String, WarrenBuffetSignal> performAnalysisForTicker(
+      @ToolParam(description = "Ticker to perform analysis for") String ticker,
+      ToolContext toolContext) {
     LOGGER.info("Analyzes stocks using Buffett's principles and LLM reasoning.");
 
     //    data = state["data"]
     LocalDate endDate = LocalDate.now();
     List<String> tickers = List.of(ticker);
 
-    Map<String, AnalysisResult> analysisData = new HashMap<>();
-
-    //    buffett_analysis = {}
+    Map<String, WarrenBuffetSignal> buffettAnalysis = new HashMap<>();
 
     for (String t : tickers) {
       updateProgress(t, "Fetching financial metrics");
@@ -116,8 +131,7 @@ public class AgentWarrenBuffettTool {
         signal = Signal.neutral;
       }
 
-      analysisData.put(
-          t,
+      AnalysisResult analysisResult =
           new AnalysisResult(
               signal,
               totalScore,
@@ -128,44 +142,21 @@ public class AgentWarrenBuffettTool {
               mgmtAnalysis,
               intrinsicValueAnalysis,
               marketCap,
-              marginOfSafety));
+              marginOfSafety);
 
       updateProgress(t, "Generating Warren Buffett analysis");
 
-      return analysisData;
-      // FIXME need to calculate the buffett output
-      //    buffett_output = generate_buffett_output(
-      //            ticker=ticker,
-      //            analysis_data=analysis_data,
-      //            model_name=state["metadata"]["model_name"],
-      //            model_provider=state["metadata"]["model_provider"],
-      //            )
-      //
-      //        # Store analysis in consistent format with other agents
-      //    buffett_analysis[ticker] = {
-      //        "signal": buffett_output.signal,
-      //                "confidence": buffett_output.confidence,  # Normalize between 0 to 100
-      //        "reasoning": buffett_output.reasoning,
-      //    }
-      //
-      // updateProgress(t, "Done");
-      //
-      //            # Create the message
-      //            message = HumanMessage(content=json.dumps(buffett_analysis),
-      // name="warren_buffett_agent")
-      //
-      //    # Show reasoning if requested
-      //    if state["metadata"]["show_reasoning"]:
-      //    show_agent_reasoning(buffett_analysis, "Warren Buffett Agent")
-      //
-      //    # Add the signal to the analyst_signals list
-      //    state["data"]["analyst_signals"]["warren_buffett_agent"] = buffett_analysis
-      //
-      // updateProgress(null, "Done");
+      WarrenBuffetSignal buffettOutput = generateBuffettOutput(t, analysisResult, toolContext);
 
-      //            return {"messages": [message], "data": state["data"]}
+      // Store analysis in consistent format with other agents
+      buffettAnalysis.put(ticker, buffettOutput);
+
+      updateProgress(t, "Done");
+
+      updateProgress(null, "Done");
     }
-    return analysisData;
+
+    return buffettAnalysis;
   }
 
   /**
@@ -457,22 +448,58 @@ public class AgentWarrenBuffettTool {
         "Intrinsic value calculated using DCF model with owner earnings");
   }
 
-  //            # Default fallback signal in case parsing fails
-  //    def create_default_warren_buffett_signal():
-  //            return WarrenBuffettSignal(signal="neutral", confidence=0.0, reasoning="Error in
-  // analysis, defaulting to neutral")
-  //
-  //    return call_llm(
-  //            prompt=prompt,
-  //            model_name=model_name,
-  //            model_provider=model_provider,
-  //            pydantic_model=WarrenBuffettSignal,
-  //            agent_name="warren_buffett_agent",
-  //            default_factory=create_default_warren_buffett_signal,
-  //            )
+  private WarrenBuffetSignal generateBuffettOutput(String ticker, AnalysisResult analysisResult, ToolContext toolContext) {
+    StringBuilder buffettOutput = new StringBuilder();
+
+    LOGGER.info("toolContext: {}", toolContext.getContext());
+    McpToolUtils.getMcpExchange(toolContext)
+            .ifPresent(exchange -> {
+
+              exchange.loggingNotification(McpSchema.LoggingMessageNotification.builder()
+                      .level(McpSchema.LoggingLevel.INFO)
+                      .data("Start sampling")
+                      .build());
+
+              if (exchange.getClientCapabilities().sampling() != null) {
+                var messageRequestBuilder = McpSchema.CreateMessageRequest.builder()
+                        .systemPrompt(generateSystemMessage())
+                        .messages(List.of(new McpSchema.SamplingMessage(McpSchema.Role.USER,
+                                new McpSchema.TextContent(generateUserMessage(ticker, analysisResult)))));
+
+                var llmMessageRequest = messageRequestBuilder
+                        .modelPreferences(McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
+                        .build();
+                McpSchema.CreateMessageResult llmResponse = exchange.createMessage(llmMessageRequest);
+
+                buffettOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
+              }
+
+              exchange.loggingNotification(McpSchema.LoggingMessageNotification.builder()
+                      .level(McpSchema.LoggingLevel.INFO)
+                      .data("Finish Sampling")
+                      .build());
+
+            });
+
+    LOGGER.info("Got sampling response {}", buffettOutput);
+
+      try {
+          return objectMapper.readValue(removeMarkdown(buffettOutput.toString()), WarrenBuffetSignal.class);
+      } catch (JsonProcessingException e) {
+        LOGGER.warn("Error in analysis, defaulting to neutral");
+         return new WarrenBuffetSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
+      }
+  }
+
+  private String removeMarkdown(String in) {
+    return in.replace("```json", "")
+            .replace("```", "")
+            .trim();
+  }
 
   public String generateSystemMessage() {
-    return """
+    String body =
+        """
                 You are a Warren Buffett AI agent. Decide on investment signals based on Warren Buffett's principles:
                 - Circle of Competence: Only invest in businesses you understand
                 - Margin of Safety (> 30%): Buy at a significant discount to intrinsic value
@@ -494,9 +521,11 @@ public class AgentWarrenBuffettTool {
 
                 Follow these guidelines strictly.
                 """;
+    LOGGER.info(body);
+    return body;
   }
 
-  public String generateUserMessage(String ticker, String analysisData) {
+  public String generateUserMessage(String ticker, AnalysisResult analysisData) {
     PromptTemplate promptTemplate =
         PromptTemplate.builder()
             .renderer(
@@ -520,18 +549,28 @@ public class AgentWarrenBuffettTool {
                            """)
             .build();
 
-    return promptTemplate.render(Map.of("ticker", ticker, "analysis_data", "{}"));
-  }
+    String analysisDataJson = null;
 
-  public String generateOutput(ChatClient client) {
-    return null;
+    try {
+      analysisDataJson = objectMapper.writeValueAsString(analysisData);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+
+    String body =
+        promptTemplate.render(Map.of("ticker", ticker, "analysis_data", analysisDataJson));
+    LOGGER.info(body);
+    return body;
   }
 
   private void updateProgress(String ticker, String message) {
     LOGGER.info("{}: {} - {}", AGENT_NAME, ticker, message);
   }
 
-  public record Result(BigDecimal score, BigDecimal maxScore, String details) {}
+  public record Result(
+      @JsonProperty("score") BigDecimal score,
+      @JsonProperty("max_score") BigDecimal maxScore,
+      @JsonProperty("details") String details) {}
 
   public record OwnerEarningsResult(
       @JsonProperty("owner_earnings") BigDecimal ownerEarnings,
@@ -574,7 +613,7 @@ public class AgentWarrenBuffettTool {
 
   public record WarrenBuffetSignal(
       @JsonProperty("signal") Signal signal,
-      @JsonProperty("float") Float confidence,
+      @JsonProperty("confidence") Float confidence,
       @JsonProperty("reasoning") String reasoning) {}
 
   public enum Signal {

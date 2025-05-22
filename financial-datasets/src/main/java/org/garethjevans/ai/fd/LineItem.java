@@ -30,6 +30,9 @@ public class LineItem {
 
   public BigDecimal get(String name) {
     if (data.containsKey(name)) {
+      if (data.get(name) == null) {
+        return null;
+      }
       return new BigDecimal(data.get(name).toString());
     }
     return null;
