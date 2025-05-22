@@ -77,22 +77,28 @@ public class AgentWarrenBuffettTool {
 
       updateProgress(t, "Getting market cap");
       var marketCap = financialDatasets.getMarketCap(ticker, endDate);
+      LOGGER.info("Got market cap: {}", marketCap);
 
       updateProgress(t, "Analyzing fundamentals");
       var fundamentalAnalysis = analyzeFundamentals(metrics);
+      LOGGER.info("Got fundamental analysis: {}", fundamentalAnalysis);
 
       updateProgress(t, "Analyzing consistency");
       var consistencyAnalysis = analyzeConsistency(financialLineItems);
+      LOGGER.info("Got consistency analysis: {}", consistencyAnalysis);
 
       updateProgress(t, "Analyzing moat");
       var moatAnalysis = analyzeMoat(metrics);
+      LOGGER.info("Got moat analysis: {}", moatAnalysis);
 
       updateProgress(t, "Analyzing management quality");
       var mgmtAnalysis = analyzeManagementQuality(financialLineItems);
+      LOGGER.info("Got management quality analysis: {}", mgmtAnalysis);
 
       updateProgress(t, "Calculating intrinsic value");
       IntrinsicValueAnalysisResult intrinsicValueAnalysis =
           calculateIntrinsicValue(financialLineItems);
+      LOGGER.info("Got intrinsic value analysis: {}", intrinsicValueAnalysis);
 
       // Calculate total score
       BigDecimal totalScore =
@@ -105,13 +111,19 @@ public class AgentWarrenBuffettTool {
       BigDecimal maxPossibleScore =
           new BigDecimal(10).add(moatAnalysis.maxScore()).add(mgmtAnalysis.maxScore());
 
+      LOGGER.info("Got a score of {} out of a total {}", totalScore, maxPossibleScore);
+
       // Add margin of safety analysis if we have both intrinsic value and current price
       BigDecimal marginOfSafety = null;
       BigDecimal intrinsicValue = intrinsicValueAnalysis.intrinsicValue();
+      LOGGER.info("Got intrinsic value: {}", intrinsicValue);
 
       if (intrinsicValue != null && marketCap != null) {
-        marginOfSafety = intrinsicValue.add(marketCap.negate()).divide(marketCap);
+        marginOfSafety =
+            intrinsicValue.add(marketCap.negate()).divide(marketCap, 2, RoundingMode.HALF_UP);
       }
+
+      LOGGER.info("Got margin of safety: {}", marginOfSafety);
 
       Signal signal = null;
       if ((totalScore.compareTo(new BigDecimal("0.7").multiply(maxPossibleScore)) >= 0)
@@ -382,11 +394,15 @@ public class AgentWarrenBuffettTool {
     }
 
     LineItem latest = lineItems.get(0);
+
+    LOGGER.info("LineItem> {}", latest);
+
     BigDecimal netIncome = latest.get("net_income");
-    BigDecimal depreciation = latest.get("depreciation");
-    BigDecimal capex = latest.get("capex");
+    BigDecimal depreciation = latest.get("depreciation_and_amortization");
+    BigDecimal capex = latest.get("capital_expenditure");
 
     if (netIncome == null || depreciation == null || capex == null) {
+      LOGGER.info("netIncome: {}, depreciation: {}, capex: {}", netIncome, depreciation, capex);
       return new OwnerEarningsResult(
           null, null, "Missing components for owner earnings calculation");
     }
@@ -441,7 +457,9 @@ public class AgentWarrenBuffettTool {
 
     for (int year = 1; year < projectionYears + 1; year++) {
       BigDecimal futureEarnings = ownerEarnings.multiply(BigDecimal.ONE.add(growthRate).pow(year));
-      BigDecimal presentValue = futureEarnings.divide(BigDecimal.ONE.add(discountRate)).pow(year);
+      BigDecimal presentValue =
+          futureEarnings.divide(
+              BigDecimal.ONE.add(discountRate).pow(year), 2, RoundingMode.HALF_UP);
       futureValue = futureValue.add(presentValue);
     }
 
@@ -449,8 +467,7 @@ public class AgentWarrenBuffettTool {
         ownerEarnings
             .multiply(BigDecimal.ONE.add(growthRate).pow(projectionYears))
             .multiply(terminalMultiple)
-            .divide(BigDecimal.ONE.add(discountRate))
-            .pow(projectionYears);
+            .divide(BigDecimal.ONE.add(discountRate).pow(projectionYears), 2, RoundingMode.HALF_UP);
 
     BigDecimal intrinsicValue = futureValue.add(terminalValue);
 

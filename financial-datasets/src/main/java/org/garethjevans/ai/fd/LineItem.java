@@ -38,5 +38,10 @@ public class LineItem {
     return null;
   }
 
+  @Override
+  public String toString() {
+    return data.toString();
+  }
+
   // ,"report_period":"2025-03-29","period":"ttm","currency":"USD"
 }
