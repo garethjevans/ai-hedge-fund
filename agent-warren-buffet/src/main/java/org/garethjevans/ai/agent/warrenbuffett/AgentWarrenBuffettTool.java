@@ -3,31 +3,24 @@ package org.garethjevans.ai.agent.warrenbuffett;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.modelcontextprotocol.spec.McpSchema;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import io.modelcontextprotocol.spec.McpSchema;
+import java.util.stream.IntStream;
 import org.garethjevans.ai.fd.FinancialDatasetsService;
 import org.garethjevans.ai.fd.LineItem;
 import org.garethjevans.ai.fd.Metrics;
 import org.garethjevans.ai.fd.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ToolContext;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.mcp.McpToolUtils;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.template.st.StTemplateRenderer;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -108,6 +101,7 @@ public class AgentWarrenBuffettTool {
               .add(consistencyAnalysis.score())
               .add(moatAnalysis.score())
               .add(mgmtAnalysis.score());
+
       BigDecimal maxPossibleScore =
           new BigDecimal(10).add(moatAnalysis.maxScore()).add(mgmtAnalysis.maxScore());
 
@@ -130,6 +124,8 @@ public class AgentWarrenBuffettTool {
       } else {
         signal = Signal.neutral;
       }
+
+      LOGGER.info("Estimating signal as {}", signal);
 
       AnalysisResult analysisResult =
           new AnalysisResult(
@@ -222,35 +218,52 @@ public class AgentWarrenBuffettTool {
         new BigDecimal(score), String.join("; ", reasoning), latestMetrics);
   }
 
-  public Result analyzeConsistency(List<LineItem> financialLineItems) {
-    if (financialLineItems.size() < 4) {
+  public Result analyzeConsistency(List<LineItem> lineItems) {
+    if (lineItems.size() < 4) {
       return new Result(new BigDecimal(0), null, "Insufficient historical data");
     }
 
     int score = 0;
     List<String> reasoning = new ArrayList<>();
-    //
-    //            # Check earnings growth trend
-    //    earnings_values = [item.net_income for item in financial_line_items if item.net_income]
-    //            if len(earnings_values) >= 4:
-    //            # Simple check: is each period's earnings bigger than the next?
-    //    earnings_growth = all(earnings_values[i] > earnings_values[i + 1] for i in
-    // range(len(earnings_values) - 1))
-    //
-    //            if earnings_growth:
-    //    score += 3
-    //            reasoning.append("Consistent earnings growth over past periods")
-    //            else:
-    //            reasoning.append("Inconsistent earnings growth pattern")
-    //
-    //            # Calculate total growth rate from oldest to latest
-    //        if len(earnings_values) >= 2 and earnings_values[-1] != 0:
-    //    growth_rate = (earnings_values[0] - earnings_values[-1]) / abs(earnings_values[-1])
-    //            reasoning.append(f"Total earnings growth of {growth_rate:.1%} over past
-    // {len(earnings_values)} periods")
-    //            else:
-    //            reasoning.append("Insufficient earnings data for trend analysis")
-    //
+
+    // Check earnings growth trend
+    List<BigDecimal> earningsValues =
+        lineItems.stream()
+            .filter(l -> l.get("net_income") != null)
+            .map(l -> l.get("net_income"))
+            .toList();
+
+    if (earningsValues.size() >= 4) {
+      // Simple check: is each period's earnings bigger than the next?
+      boolean earningsGrowth =
+          IntStream.range(1, earningsValues.size() - 1)
+              .allMatch(p -> earningsValues.get(p - 1).compareTo(earningsValues.get(p)) > 0);
+
+      if (earningsGrowth) {
+        score += 3;
+        reasoning.add("Consistent earnings growth over past periods");
+      } else {
+        reasoning.add("Inconsistent earnings growth pattern");
+      }
+    }
+
+    // Calculate total growth rate from oldest to latest
+    if (earningsValues.size() >= 2 && earningsValues.getLast().compareTo(BigDecimal.ZERO) != 0) {
+      BigDecimal growthRate =
+          earningsValues
+              .getFirst()
+              .add(earningsValues.getLast().negate())
+              .divide(earningsValues.getLast().abs(), 2, RoundingMode.HALF_UP);
+      reasoning.add(
+          "Total earnings growth of "
+              + growthRate
+              + " over past "
+              + earningsValues.size()
+              + " periods");
+    } else {
+      reasoning.add("Insufficient earnings data for trend analysis");
+    }
+
     return new Result(new BigDecimal(score), null, String.join("; ", reasoning));
   }
 
@@ -448,53 +461,62 @@ public class AgentWarrenBuffettTool {
         "Intrinsic value calculated using DCF model with owner earnings");
   }
 
-  private WarrenBuffetSignal generateBuffettOutput(String ticker, AnalysisResult analysisResult, ToolContext toolContext) {
+  private WarrenBuffetSignal generateBuffettOutput(
+      String ticker, AnalysisResult analysisResult, ToolContext toolContext) {
     StringBuilder buffettOutput = new StringBuilder();
 
     LOGGER.info("toolContext: {}", toolContext.getContext());
     McpToolUtils.getMcpExchange(toolContext)
-            .ifPresent(exchange -> {
-
-              exchange.loggingNotification(McpSchema.LoggingMessageNotification.builder()
+        .ifPresent(
+            exchange -> {
+              exchange.loggingNotification(
+                  McpSchema.LoggingMessageNotification.builder()
                       .level(McpSchema.LoggingLevel.INFO)
                       .data("Start sampling")
                       .build());
 
               if (exchange.getClientCapabilities().sampling() != null) {
-                var messageRequestBuilder = McpSchema.CreateMessageRequest.builder()
+                var messageRequestBuilder =
+                    McpSchema.CreateMessageRequest.builder()
                         .systemPrompt(generateSystemMessage())
-                        .messages(List.of(new McpSchema.SamplingMessage(McpSchema.Role.USER,
-                                new McpSchema.TextContent(generateUserMessage(ticker, analysisResult)))));
+                        .messages(
+                            List.of(
+                                new McpSchema.SamplingMessage(
+                                    McpSchema.Role.USER,
+                                    new McpSchema.TextContent(
+                                        generateUserMessage(ticker, analysisResult)))));
 
-                var llmMessageRequest = messageRequestBuilder
-                        .modelPreferences(McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
+                var llmMessageRequest =
+                    messageRequestBuilder
+                        .modelPreferences(
+                            McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
                         .build();
-                McpSchema.CreateMessageResult llmResponse = exchange.createMessage(llmMessageRequest);
+                McpSchema.CreateMessageResult llmResponse =
+                    exchange.createMessage(llmMessageRequest);
 
                 buffettOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
               }
 
-              exchange.loggingNotification(McpSchema.LoggingMessageNotification.builder()
+              exchange.loggingNotification(
+                  McpSchema.LoggingMessageNotification.builder()
                       .level(McpSchema.LoggingLevel.INFO)
                       .data("Finish Sampling")
                       .build());
-
             });
 
     LOGGER.info("Got sampling response {}", buffettOutput);
 
-      try {
-          return objectMapper.readValue(removeMarkdown(buffettOutput.toString()), WarrenBuffetSignal.class);
-      } catch (JsonProcessingException e) {
-        LOGGER.warn("Error in analysis, defaulting to neutral");
-         return new WarrenBuffetSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
-      }
+    try {
+      return objectMapper.readValue(
+          removeMarkdown(buffettOutput.toString()), WarrenBuffetSignal.class);
+    } catch (JsonProcessingException e) {
+      LOGGER.warn("Error in analysis, defaulting to neutral");
+      return new WarrenBuffetSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
+    }
   }
 
   private String removeMarkdown(String in) {
-    return in.replace("```json", "")
-            .replace("```", "")
-            .trim();
+    return in.replace("```json", "").replace("```", "").trim();
   }
 
   public String generateSystemMessage() {
