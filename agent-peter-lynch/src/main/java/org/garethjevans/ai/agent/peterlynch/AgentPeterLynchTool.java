@@ -556,7 +556,7 @@ public class AgentPeterLynchTool {
     //        agent_name="peter_lynch_agent",
     //        default_factory=create_default_signal,
     //    )
-    
+
     //    data = state["data"]
     LocalDate endDate = LocalDate.now();
     List<String> tickers = List.of(ticker);
