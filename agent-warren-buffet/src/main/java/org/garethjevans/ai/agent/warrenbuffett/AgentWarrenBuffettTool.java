@@ -109,7 +109,7 @@ public class AgentWarrenBuffettTool {
               .add(mgmtAnalysis.score());
 
       BigDecimal maxPossibleScore =
-          new BigDecimal(10).add(moatAnalysis.maxScore()).add(mgmtAnalysis.maxScore());
+          consistencyAnalysis.maxScore().add(moatAnalysis.maxScore()).add(mgmtAnalysis.maxScore());
 
       LOGGER.info("Got a score of {} out of a total {}", totalScore, maxPossibleScore);
 
@@ -175,7 +175,8 @@ public class AgentWarrenBuffettTool {
    */
   public FundamentalsResult analyzeFundamentals(List<Metrics> metrics) {
     if (metrics == null || metrics.isEmpty()) {
-      return new FundamentalsResult(BigDecimal.ZERO, "Insufficient fundamental data", null);
+      return new FundamentalsResult(
+          BigDecimal.ZERO, new BigDecimal(7), "Insufficient fundamental data", null);
     }
 
     Metrics latestMetrics = metrics.get(0);
@@ -227,12 +228,12 @@ public class AgentWarrenBuffettTool {
     }
 
     return new FundamentalsResult(
-        new BigDecimal(score), String.join("; ", reasoning), latestMetrics);
+        new BigDecimal(score), new BigDecimal(7), String.join("; ", reasoning), latestMetrics);
   }
 
   public Result analyzeConsistency(List<LineItem> lineItems) {
     if (lineItems.size() < 4) {
-      return new Result(new BigDecimal(0), null, "Insufficient historical data");
+      return new Result(new BigDecimal(0), new BigDecimal(3), "Insufficient historical data");
     }
 
     int score = 0;
@@ -244,6 +245,8 @@ public class AgentWarrenBuffettTool {
             .filter(l -> l.get("net_income") != null)
             .map(l -> l.get("net_income"))
             .toList();
+
+    LOGGER.info("Earnings Values {}", earningsValues);
 
     if (earningsValues.size() >= 4) {
       // Simple check: is each period's earnings bigger than the next?
@@ -276,7 +279,7 @@ public class AgentWarrenBuffettTool {
       reasoning.add("Insufficient earnings data for trend analysis");
     }
 
-    return new Result(new BigDecimal(score), null, String.join("; ", reasoning));
+    return new Result(new BigDecimal(score), new BigDecimal(3), String.join("; ", reasoning));
   }
 
   /**
@@ -482,7 +485,7 @@ public class AgentWarrenBuffettTool {
       String ticker, AnalysisResult analysisResult, ToolContext toolContext) {
     StringBuilder buffettOutput = new StringBuilder();
 
-    LOGGER.info("toolContext: {}", toolContext.getContext());
+    // LOGGER.info("toolContext: {}", toolContext.getContext());
     McpToolUtils.getMcpExchange(toolContext)
         .ifPresent(
             exchange -> {
@@ -521,13 +524,13 @@ public class AgentWarrenBuffettTool {
                       .build());
             });
 
-    LOGGER.info("Got sampling response {}", buffettOutput);
+    String withoutMarkdown = removeMarkdown(buffettOutput.toString());
+    LOGGER.info("Got sampling response '{}'", withoutMarkdown);
 
     try {
-      return objectMapper.readValue(
-          removeMarkdown(buffettOutput.toString()), WarrenBuffetSignal.class);
+      return objectMapper.readValue(withoutMarkdown, WarrenBuffetSignal.class);
     } catch (JsonProcessingException e) {
-      LOGGER.warn("Error in analysis, defaulting to neutral");
+      LOGGER.warn("Error in analysis, defaulting to neutral", e);
       return new WarrenBuffetSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
     }
   }
@@ -623,6 +626,7 @@ public class AgentWarrenBuffettTool {
 
   public record FundamentalsResult(
       @JsonProperty("score") BigDecimal score,
+      @JsonProperty("max_score") BigDecimal maxScore,
       @JsonProperty("details") String details,
       @JsonProperty("metrics") Metrics metrics) {}
 
