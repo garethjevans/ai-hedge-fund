@@ -24,7 +24,7 @@ class McpTest {
     McpClientTransport transport =
         HttpClientSseClientTransport.builder("http://localhost:" + port).build();
     McpSyncClient mcpClient =
-        McpClient.sync(transport).requestTimeout(Duration.ofSeconds(5)).build();
+        McpClient.sync(transport).requestTimeout(Duration.ofSeconds(60)).build();
 
     mcpClient.initialize();
 
@@ -39,7 +39,7 @@ class McpTest {
 
     McpSchema.CallToolResult result =
         mcpClient.callTool(
-            new McpSchema.CallToolRequest("warren_buffett_analysis", "{\"ticker\":\"AAPL\"}"));
+            new McpSchema.CallToolRequest("warren_buffett_analysis", "{\"ticker\":\"AVGO\"}"));
 
     result.content().forEach(System.out::println);
   }

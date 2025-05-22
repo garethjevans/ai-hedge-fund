@@ -29,7 +29,18 @@ public class LineItem {
   }
 
   public BigDecimal get(String name) {
-    return new BigDecimal(data.get(name).toString());
+    if (data.containsKey(name)) {
+      if (data.get(name) == null) {
+        return null;
+      }
+      return new BigDecimal(data.get(name).toString());
+    }
+    return null;
+  }
+
+  @Override
+  public String toString() {
+    return data.toString();
   }
 
   // ,"report_period":"2025-03-29","period":"ttm","currency":"USD"
