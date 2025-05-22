@@ -17,6 +17,8 @@
 	<modules>
 		<module>financial-datasets</module>
 		<module>agent-warren-buffet</module>
+		<module>agent-michael-burry</module>
+		<module>agent-peter-lynch</module>
 	</modules>
 	<properties>
 		<java.version>21</java.version>
