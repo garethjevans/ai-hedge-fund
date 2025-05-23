@@ -49,24 +49,24 @@ public class AgentPeterLynchTool {
     LOGGER.info("Analyzes stocks using Peter Lynch's principles and LLM reasoning.");
 
     // from src.graph.state import AgentState, show_agent_reasoning
-    //from src.tools.api import (
+    // from src.tools.api import (
     //    get_financial_metrics,
     //    get_market_cap,
     //    search_line_items,
     //    get_insider_trades,
     //    get_company_news,
     //    get_prices,
-    //)
-    //from langchain_core.prompts import ChatPromptTemplate
-    //from langchain_core.messages import HumanMessage
-    //from pydantic import BaseModel
-    //import json
-    //from typing_extensions import Literal
-    //from src.utils.progress import progress
-    //from src.utils.llm import call_llm
+    // )
+    // from langchain_core.prompts import ChatPromptTemplate
+    // from langchain_core.messages import HumanMessage
+    // from pydantic import BaseModel
+    // import json
+    // from typing_extensions import Literal
+    // from src.utils.progress import progress
+    // from src.utils.llm import call_llm
     //
     //
-    //class PeterLynchSignal(BaseModel):
+    // class PeterLynchSignal(BaseModel):
     //    """
     //    Container for the Peter Lynch-style output signal.
     //    """
@@ -75,7 +75,7 @@ public class AgentPeterLynchTool {
     //    reasoning: str
     //
     //
-    //def peter_lynch_agent(state: AgentState):
+    // def peter_lynch_agent(state: AgentState):
     //    """
     //    Analyzes stocks using Peter Lynch's investing principles:
     //      - Invest in what you know (clear, understandable businesses).
@@ -134,7 +134,8 @@ public class AgentPeterLynchTool {
     //        progress.update_status("peter_lynch_agent", ticker, "Fetching company news")
     //        company_news = get_company_news(ticker, end_date, start_date=None, limit=50)
     //
-    //        progress.update_status("peter_lynch_agent", ticker, "Fetching recent price data for reference")
+    //        progress.update_status("peter_lynch_agent", ticker, "Fetching recent price data for
+    // reference")
     //        prices = get_prices(ticker, start_date=start_date, end_date=end_date)
     //
     //        # Perform sub-analyses:
@@ -144,7 +145,8 @@ public class AgentPeterLynchTool {
     //        progress.update_status("peter_lynch_agent", ticker, "Analyzing fundamentals")
     //        fundamentals_analysis = analyze_lynch_fundamentals(financial_line_items)
     //
-    //        progress.update_status("peter_lynch_agent", ticker, "Analyzing valuation (focus on PEG)")
+    //        progress.update_status("peter_lynch_agent", ticker, "Analyzing valuation (focus on
+    // PEG)")
     //        valuation_analysis = analyze_lynch_valuation(financial_line_items, market_cap)
     //
     //        progress.update_status("peter_lynch_agent", ticker, "Analyzing sentiment")
@@ -215,7 +217,7 @@ public class AgentPeterLynchTool {
     //    return {"messages": [message], "data": state["data"]}
     //
     //
-    //def analyze_lynch_growth(financial_line_items: list) -> dict:
+    // def analyze_lynch_growth(financial_line_items: list) -> dict:
     //    """
     //    Evaluate growth based on revenue and EPS trends:
     //      - Consistent revenue growth
@@ -253,7 +255,8 @@ public class AgentPeterLynchTool {
     //        details.append("Not enough revenue data to assess growth.")
     //
     //    # 2) EPS Growth
-    //    eps_values = [fi.earnings_per_share for fi in financial_line_items if fi.earnings_per_share is not None]
+    //    eps_values = [fi.earnings_per_share for fi in financial_line_items if
+    // fi.earnings_per_share is not None]
     //    if len(eps_values) >= 2:
     //        latest_eps = eps_values[0]
     //        older_eps = eps_values[-1]
@@ -280,7 +283,7 @@ public class AgentPeterLynchTool {
     //    return {"score": final_score, "details": "; ".join(details)}
     //
     //
-    //def analyze_lynch_fundamentals(financial_line_items: list) -> dict:
+    // def analyze_lynch_fundamentals(financial_line_items: list) -> dict:
     //    """
     //    Evaluate basic fundamentals:
     //      - Debt/Equity
@@ -296,8 +299,10 @@ public class AgentPeterLynchTool {
     //
     //    # 1) Debt-to-Equity
     //    debt_values = [fi.total_debt for fi in financial_line_items if fi.total_debt is not None]
-    //    eq_values = [fi.shareholders_equity for fi in financial_line_items if fi.shareholders_equity is not None]
-    //    if debt_values and eq_values and len(debt_values) == len(eq_values) and len(debt_values) > 0:
+    //    eq_values = [fi.shareholders_equity for fi in financial_line_items if
+    // fi.shareholders_equity is not None]
+    //    if debt_values and eq_values and len(debt_values) == len(eq_values) and len(debt_values) >
+    // 0:
     //        recent_debt = debt_values[0]
     //        recent_equity = eq_values[0] if eq_values[0] else 1e-9
     //        de_ratio = recent_debt / recent_equity
@@ -313,7 +318,8 @@ public class AgentPeterLynchTool {
     //        details.append("No consistent debt/equity data available.")
     //
     //    # 2) Operating Margin
-    //    om_values = [fi.operating_margin for fi in financial_line_items if fi.operating_margin is not None]
+    //    om_values = [fi.operating_margin for fi in financial_line_items if fi.operating_margin is
+    // not None]
     //    if om_values:
     //        om_recent = om_values[0]
     //        if om_recent > 0.20:
@@ -328,7 +334,8 @@ public class AgentPeterLynchTool {
     //        details.append("No operating margin data available.")
     //
     //    # 3) Positive Free Cash Flow
-    //    fcf_values = [fi.free_cash_flow for fi in financial_line_items if fi.free_cash_flow is not None]
+    //    fcf_values = [fi.free_cash_flow for fi in financial_line_items if fi.free_cash_flow is not
+    // None]
     //    if fcf_values and fcf_values[0] is not None:
     //        if fcf_values[0] > 0:
     //            raw_score += 2
@@ -343,7 +350,7 @@ public class AgentPeterLynchTool {
     //    return {"score": final_score, "details": "; ".join(details)}
     //
     //
-    //def analyze_lynch_valuation(financial_line_items: list, market_cap: float | None) -> dict:
+    // def analyze_lynch_valuation(financial_line_items: list, market_cap: float | None) -> dict:
     //    """
     //    Peter Lynch's approach to 'Growth at a Reasonable Price' (GARP):
     //      - Emphasize the PEG ratio: (P/E) / Growth Rate
@@ -358,7 +365,8 @@ public class AgentPeterLynchTool {
     //
     //    # Gather data for P/E
     //    net_incomes = [fi.net_income for fi in financial_line_items if fi.net_income is not None]
-    //    eps_values = [fi.earnings_per_share for fi in financial_line_items if fi.earnings_per_share is not None]
+    //    eps_values = [fi.earnings_per_share for fi in financial_line_items if
+    // fi.earnings_per_share is not None]
     //
     //    # Approximate P/E via (market cap / net income) if net income is positive
     //    pe_ratio = None
@@ -387,7 +395,8 @@ public class AgentPeterLynchTool {
     //        # Peg ratio typically uses a percentage growth rate
     //        # So if growth rate is 0.25, we treat it as 25 for the formula => PE / 25
     //        # Alternatively, some treat it as 0.25 => we do (PE / (0.25 * 100)).
-    //        # Implementation can vary, but let's do a standard approach: PEG = PE / (Growth * 100).
+    //        # Implementation can vary, but let's do a standard approach: PEG = PE / (Growth *
+    // 100).
     //        peg_ratio = pe_ratio / (eps_growth_rate * 100)
     //        details.append(f"PEG ratio: {peg_ratio:.2f}")
     //
@@ -412,14 +421,15 @@ public class AgentPeterLynchTool {
     //    return {"score": final_score, "details": "; ".join(details)}
     //
     //
-    //def analyze_sentiment(news_items: list) -> dict:
+    // def analyze_sentiment(news_items: list) -> dict:
     //    """
     //    Basic news sentiment check. Negative headlines weigh on the final score.
     //    """
     //    if not news_items:
     //        return {"score": 5, "details": "No news data; default to neutral sentiment"}
     //
-    //    negative_keywords = ["lawsuit", "fraud", "negative", "downturn", "decline", "investigation", "recall"]
+    //    negative_keywords = ["lawsuit", "fraud", "negative", "downturn", "decline",
+    // "investigation", "recall"]
     //    negative_count = 0
     //    for news in news_items:
     //        title_lower = (news.title or "").lower()
@@ -430,7 +440,8 @@ public class AgentPeterLynchTool {
     //    if negative_count > len(news_items) * 0.3:
     //        # More than 30% negative => somewhat bearish => 3/10
     //        score = 3
-    //        details.append(f"High proportion of negative headlines: {negative_count}/{len(news_items)}")
+    //        details.append(f"High proportion of negative headlines:
+    // {negative_count}/{len(news_items)}")
     //    elif negative_count > 0:
     //        # Some negativity => 6/10
     //        score = 6
@@ -443,7 +454,7 @@ public class AgentPeterLynchTool {
     //    return {"score": score, "details": "; ".join(details)}
     //
     //
-    //def analyze_insider_activity(insider_trades: list) -> dict:
+    // def analyze_insider_activity(insider_trades: list) -> dict:
     //    """
     //    Simple insider-trade analysis:
     //      - If there's heavy insider buying, it's a positive sign.
@@ -488,12 +499,12 @@ public class AgentPeterLynchTool {
     //    return {"score": score, "details": "; ".join(details)}
     //
     //
-    //def generate_lynch_output(
+    // def generate_lynch_output(
     //    ticker: str,
     //    analysis_data: dict[str, any],
     //    model_name: str,
     //    model_provider: str,
-    //) -> PeterLynchSignal:
+    // ) -> PeterLynchSignal:
     //    """
     //    Generates a final JSON signal in Peter Lynch's voice & style.
     //    """
@@ -501,19 +512,26 @@ public class AgentPeterLynchTool {
     //        [
     //            (
     //                "system",
-    //                """You are a Peter Lynch AI agent. You make investment decisions based on Peter Lynch's well-known principles:
+    //                """You are a Peter Lynch AI agent. You make investment decisions based on
+    // Peter Lynch's well-known principles:
     //
-    //                1. Invest in What You Know: Emphasize understandable businesses, possibly discovered in everyday life.
-    //                2. Growth at a Reasonable Price (GARP): Rely on the PEG ratio as a prime metric.
-    //                3. Look for 'Ten-Baggers': Companies capable of growing earnings and share price substantially.
-    //                4. Steady Growth: Prefer consistent revenue/earnings expansion, less concern about short-term noise.
+    //                1. Invest in What You Know: Emphasize understandable businesses, possibly
+    // discovered in everyday life.
+    //                2. Growth at a Reasonable Price (GARP): Rely on the PEG ratio as a prime
+    // metric.
+    //                3. Look for 'Ten-Baggers': Companies capable of growing earnings and share
+    // price substantially.
+    //                4. Steady Growth: Prefer consistent revenue/earnings expansion, less concern
+    // about short-term noise.
     //                5. Avoid High Debt: Watch for dangerous leverage.
-    //                6. Management & Story: A good 'story' behind the stock, but not overhyped or too complex.
+    //                6. Management & Story: A good 'story' behind the stock, but not overhyped or
+    // too complex.
     //
     //                When you provide your reasoning, do it in Peter Lynch's voice:
     //                - Cite the PEG ratio
     //                - Mention 'ten-bagger' potential if applicable
-    //                - Refer to personal or anecdotal observations (e.g., "If my kids love the product...")
+    //                - Refer to personal or anecdotal observations (e.g., "If my kids love the
+    // product...")
     //                - Use practical, folksy language
     //                - Provide key positives and negatives
     //                - Conclude with a clear stance (bullish, bearish, or neutral)
@@ -528,7 +546,8 @@ public class AgentPeterLynchTool {
     //            ),
     //            (
     //                "human",
-    //                """Based on the following analysis data for {ticker}, produce your Peter Lynch–style investment signal.
+    //                """Based on the following analysis data for {ticker}, produce your Peter
+    // Lynch–style investment signal.
     //
     //                Analysis Data:
     //                {analysis_data}
@@ -539,7 +558,8 @@ public class AgentPeterLynchTool {
     //        ]
     //    )
     //
-    //    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+    //    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker":
+    // ticker})
     //
     //    def create_default_signal():
     //        return PeterLynchSignal(

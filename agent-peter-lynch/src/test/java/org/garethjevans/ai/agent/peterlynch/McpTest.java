@@ -13,35 +13,34 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
 @SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"server.shutdown=immediate"})
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {"server.shutdown=immediate"})
 class McpTest {
 
-    @LocalServerPort private int port;
+  @LocalServerPort private int port;
 
-    @Test
-    void canQueryAppleTicker() {
-        McpClientTransport transport =
-                HttpClientSseClientTransport.builder("http://localhost:" + port).build();
-        McpSyncClient mcpClient =
-                McpClient.sync(transport).requestTimeout(Duration.ofSeconds(60)).build();
+  @Test
+  void canQueryAppleTicker() {
+    McpClientTransport transport =
+        HttpClientSseClientTransport.builder("http://localhost:" + port).build();
+    McpSyncClient mcpClient =
+        McpClient.sync(transport).requestTimeout(Duration.ofSeconds(60)).build();
 
-        mcpClient.initialize();
+    mcpClient.initialize();
 
-        mcpClient.setLoggingLevel(McpSchema.LoggingLevel.DEBUG);
+    mcpClient.setLoggingLevel(McpSchema.LoggingLevel.DEBUG);
 
-        McpSchema.ListToolsResult tools = mcpClient.listTools();
-        assertThat(tools).isNotNull();
-        assertThat(tools.tools()).isNotNull();
-        assertThat(tools.tools()).hasSizeGreaterThan(0);
+    McpSchema.ListToolsResult tools = mcpClient.listTools();
+    assertThat(tools).isNotNull();
+    assertThat(tools.tools()).isNotNull();
+    assertThat(tools.tools()).hasSizeGreaterThan(0);
 
-        tools.tools().forEach(System.out::println);
+    tools.tools().forEach(System.out::println);
 
-        McpSchema.CallToolResult result =
-                mcpClient.callTool(
-                        new McpSchema.CallToolRequest("peter_lynch_analysis", "{\"ticker\":\"AVGO\"}"));
+    McpSchema.CallToolResult result =
+        mcpClient.callTool(
+            new McpSchema.CallToolRequest("peter_lynch_analysis", "{\"ticker\":\"AVGO\"}"));
 
-        result.content().forEach(System.out::println);
-    }
+    result.content().forEach(System.out::println);
+  }
 }
-
