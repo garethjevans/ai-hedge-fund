@@ -7,8 +7,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpRequest;
@@ -175,27 +177,41 @@ public class FinancialDatasetsService {
   public List<InsiderTrade> getInsiderTrades(
       String ticker, LocalDate startDate, LocalDate endDate, int limit) {
 
-    return cacheAwareGet(
-            InsiderTradesResult.class,
-            "/insider-trades/?ticker={ticker}&filing_date_gte={start_date}&filing_date_lte={end_date}&limit={limit}",
-            ticker,
-            startDate,
-            endDate,
-            limit)
-        .insiderTrades();
+    return allPagedResultsByDateAndLimit(
+        batchEndDate -> {
+          return cacheAwareGet(
+                  InsiderTradesResult.class,
+                  "/insider-trades/?ticker={ticker}&filing_date_gte={start_date}&filing_date_lte={end_date}&limit={limit}",
+                  ticker,
+                  startDate,
+                  batchEndDate,
+                  limit)
+              .insiderTrades();
+        },
+        InsiderTrade::filingDate,
+        startDate,
+        endDate,
+        limit);
   }
 
   public List<CompanyNews> getCompanyNews(
       String ticker, LocalDate startDate, LocalDate endDate, int limit) {
 
-    return cacheAwareGet(
-            CompanyNewsResult.class,
-            "/news/?ticker={ticker}&start_date={start_date}&end_date={end_date}&limit={limit}",
-            ticker,
-            startDate,
-            endDate,
-            limit)
-        .companyNews();
+    return allPagedResultsByDateAndLimit(
+        batchEndDate -> {
+          return cacheAwareGet(
+                  CompanyNewsResult.class,
+                  "/news/?ticker={ticker}&start_date={start_date}&end_date={end_date}&limit={limit}",
+                  ticker,
+                  startDate,
+                  batchEndDate,
+                  limit)
+              .companyNews();
+        },
+        CompanyNews::date,
+        startDate,
+        endDate,
+        limit);
   }
 
   public BigDecimal getMarketCap(String ticker, LocalDate endDate) {
@@ -204,6 +220,37 @@ public class FinancialDatasetsService {
     }
 
     return getFinancialMetrics(ticker, endDate, Period.ttm, 10).get(0).marketCap();
+  }
+
+  private <T> List<T> allPagedResultsByDateAndLimit(
+      Function<LocalDate, List<T>> get,
+      Function<T, LocalDate> extractNewDate,
+      LocalDate startDate,
+      LocalDate endDate,
+      int limit) {
+    List<T> all = new ArrayList<>();
+    boolean more = true;
+    LocalDate batchEndDate = endDate;
+
+    while (more) {
+      List<T> batch = get.apply(batchEndDate);
+
+      all.addAll(batch);
+
+      if (batch.size() < limit) {
+        more = false;
+      }
+
+      // Update end_date to the oldest date from current batch for next iteration
+      batchEndDate = batch.stream().map(extractNewDate).min(LocalDate::compareTo).get();
+
+      // If we've reached or passed the start_date, we can stop
+      if (batchEndDate.isBefore(startDate)) {
+        more = false;
+      }
+    }
+
+    return all;
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
