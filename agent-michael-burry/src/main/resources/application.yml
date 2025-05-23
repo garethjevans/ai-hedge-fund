@@ -4,11 +4,11 @@ server:
 
 spring:
   application:
-    name: agent-warren-buffett
+    name: agent-michael-burry
   ai:
     mcp:
       server:
-        name: agent-warren-buffett
+        name: agent-michael-burry
         version: 0.0.1-SNAPSHOT
         type: SYNC
         sse-message-endpoint: /mcp/messages
