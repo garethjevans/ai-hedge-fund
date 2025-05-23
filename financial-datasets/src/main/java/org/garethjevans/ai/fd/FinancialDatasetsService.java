@@ -134,20 +134,19 @@ public class FinancialDatasetsService {
   }
 
   public Facts companyFacts(String ticker) {
-    LOGGER.info("getting company facts for {}", ticker);
-
     return cacheAwareGet(CompanyFactsHolder.class, "/company/facts/?ticker={ticker}", ticker)
         .companyFacts();
   }
 
-  //  public List<Price> getPrices(String ticker, LocalDate startDate, LocalDate endDate) {
-  //    LOGGER.info("getting prices for {} between {} and {}", ticker, startDate, endDate);
-  //    return cacheAwareGet(PricesHolder.class,
-  // "/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={startDate}&end_date={endDate}",
-  //            ticker,
-  //            startDate,
-  //            endDate).prices();
-  //  }
+  public List<Price> getPrices(String ticker, LocalDate startDate, LocalDate endDate) {
+    return cacheAwareGet(
+            PricesResult.class,
+            "/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={startDate}&end_date={endDate}",
+            ticker,
+            startDate,
+            endDate)
+        .prices();
+  }
 
   public List<Metrics> getFinancialMetrics(
       String ticker, LocalDate endDate, Period period, int limit) {
@@ -207,20 +206,10 @@ public class FinancialDatasetsService {
     return getFinancialMetrics(ticker, endDate, Period.ttm, 10).get(0).marketCap();
   }
 
-  //  @JsonIgnoreProperties(ignoreUnknown = true)
-  //  public record PricesHolder(
-  //      @JsonProperty("prices") List<Price> prices,
-  //      @JsonProperty("next_page_url") String nextPriceUrl) {}
-
-  //  @JsonIgnoreProperties(ignoreUnknown = true)
-  //  public record Price(
-  //      @JsonProperty("open") BigDecimal open,
-  //      @JsonProperty("close") BigDecimal close,
-  //      @JsonProperty("high") BigDecimal high,
-  //      @JsonProperty("low") BigDecimal low,
-  //      @JsonProperty("volume") BigDecimal volume,
-  //      @JsonProperty("time") String time,
-  //      @JsonProperty("time_milliseconds") BigInteger timeMillisecond) {}
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private record PricesResult(
+      @JsonProperty("prices") List<Price> prices,
+      @JsonProperty("next_page_url") String nextPriceUrl) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private record CompanyFactsHolder(@JsonProperty("company_facts") Facts companyFacts) {}

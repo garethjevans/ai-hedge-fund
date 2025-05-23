@@ -83,4 +83,14 @@ class FinancialDatasetsServiceTests {
             ticker, LocalDate.now().minusYears(1), LocalDate.now(), 1000);
     assertThat(news).isNotNull();
   }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"AAPL", "MSFT", "GOOGL"})
+  void canQueryPrices(String ticker) {
+    assertThat(financialDatasetsService).isNotNull();
+
+    List<Price> prices =
+        financialDatasetsService.getPrices(ticker, LocalDate.now().minusYears(1), LocalDate.now());
+    assertThat(prices).isNotNull();
+  }
 }
