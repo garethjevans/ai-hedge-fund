@@ -127,36 +127,36 @@ public class AgentPeterLynchTool {
       updateProgress(t, "Analyzing insider activity");
       var insiderActivity = analyzeInsiderActivity(insiderTrades);
 
-      int totalScore = 0;
-      //        # Combine partial scores with weights typical for Peter Lynch:
-      //        #   30% Growth, 25% Valuation, 20% Fundamentals,
-      //        #   15% Sentiment, 10% Insider Activity = 100%
-      //        total_score = (
-      //            growth_analysis["score"] * 0.30
-      //            + valuation_analysis["score"] * 0.25
-      //            + fundamentals_analysis["score"] * 0.20
-      //            + sentiment_analysis["score"] * 0.15
-      //            + insider_activity["score"] * 0.10
-      //        )
+      // Combine partial scores with weights typical for Peter Lynch:
+      // 30% Growth, 25% Valuation, 20% Fundamentals,
+      // 15% Sentiment, 10% Insider Activity = 100%
+      double totalScore =
+          new BigDecimal(growthAnalysis.score())
+              .multiply(new BigDecimal("0.30"))
+              .add(new BigDecimal(valuationAnalysis.score()).multiply(new BigDecimal("0.25")))
+              .add(new BigDecimal(fundamentalsAnalysis.score()).multiply(new BigDecimal("0.20")))
+              .add(new BigDecimal(sentimentAnalysis.score()).multiply(new BigDecimal("0.15")))
+              .add(new BigDecimal(insiderActivity.score()).multiply(new BigDecimal("0.10")))
+              .doubleValue();
 
       int maxPossibleScore = 10;
-      //        max_possible_score = 10.0
 
       Signal signal = null;
-      //        # Map final score to signal
-      //        if total_score >= 7.5:
-      //            signal = "bullish"
-      //        elif total_score <= 4.5:
-      //            signal = "bearish"
-      //        else:
-      //            signal = "neutral"
+      // Map final score to signal
+      if (totalScore >= 7.5) {
+        signal = Signal.bullish;
+      } else if (totalScore <= 4.5) {
+        signal = Signal.bearish;
+      } else {
+        signal = Signal.neutral;
+      }
 
       updateProgress(t, "Generating Peter Lynch analysis");
 
       AnalysisResult analysisResult =
           new AnalysisResult(
               signal,
-              totalScore,
+              (int) totalScore,
               maxPossibleScore,
               growthAnalysis,
               valuationAnalysis,
