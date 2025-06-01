@@ -234,29 +234,37 @@ public class AgentPeterLynchTool {
       details.add("Not enough revenue data to assess growth.");
     }
 
-    //    # 2) EPS Growth
-    //    eps_values = [fi.earnings_per_share for fi in financial_line_items if
-    // fi.earnings_per_share is not None]
-    //    if len(eps_values) >= 2:
-    //        latest_eps = eps_values[0]
-    //        older_eps = eps_values[-1]
-    //        if abs(older_eps) > 1e-9:
-    //            eps_growth = (latest_eps - older_eps) / abs(older_eps)
-    //            if eps_growth > 0.25:
-    //                raw_score += 3
-    //                details.append(f"Strong EPS growth: {eps_growth:.1%}")
-    //            elif eps_growth > 0.10:
-    //                raw_score += 2
-    //                details.append(f"Moderate EPS growth: {eps_growth:.1%}")
-    //            elif eps_growth > 0.02:
-    //                raw_score += 1
-    //                details.append(f"Slight EPS growth: {eps_growth:.1%}")
-    //            else:
-    //                details.append(f"Minimal or negative EPS growth: {eps_growth:.1%}")
-    //        else:
-    //            details.append("Older EPS is near zero; skipping EPS growth calculation.")
-    //    else:
-    //        details.append("Not enough EPS data for growth calculation.")
+    // 2) EPS Growth
+    var epsValues =
+            lineItems.stream()
+                    .filter(l -> l.get("earnings_per_share") != null)
+                    .map(l -> l.get("earnings_per_share"))
+                    .toList();
+
+    if (epsValues.size() >= 2) {
+      BigDecimal latestEps = epsValues.getFirst();
+      BigDecimal oldestEps = epsValues.getLast();
+
+      //        if abs(older_eps) > 1e-9:
+      //            eps_growth = (latest_eps - older_eps) / abs(older_eps)
+      //            if eps_growth > 0.25:
+      //                raw_score += 3
+      //                details.append(f"Strong EPS growth: {eps_growth:.1%}")
+      //            elif eps_growth > 0.10:
+      //                raw_score += 2
+      //                details.append(f"Moderate EPS growth: {eps_growth:.1%}")
+      //            elif eps_growth > 0.02:
+      //                raw_score += 1
+      //                details.append(f"Slight EPS growth: {eps_growth:.1%}")
+      //            else:
+      //                details.append(f"Minimal or negative EPS growth: {eps_growth:.1%}")
+      //        else:
+      //            details.append("Older EPS is near zero; skipping EPS growth calculation.")
+
+    } else {
+      details.add("Not enough EPS data for growth calculation.");
+    }
+
     //
     //    # raw_score can be up to 6 => scale to 0–10
     //    final_score = min(10, (raw_score / 6) * 10)
