@@ -205,7 +205,7 @@ public class AgentPeterLynchTool {
             .map(l -> l.get("revenue"))
             .toList();
 
-    //    revenues = [fi.revenue for fi in financial_line_items if fi.revenue is not None]
+    // revenues = [fi.revenue for fi in financial_line_items if fi.revenue is not None]
     if (revenues.size() >= 2) {
       BigDecimal latestRev = revenues.getFirst();
       BigDecimal oldestRev = revenues.getLast();
@@ -233,6 +233,7 @@ public class AgentPeterLynchTool {
     } else {
       details.add("Not enough revenue data to assess growth.");
     }
+
     //    # 2) EPS Growth
     //    eps_values = [fi.earnings_per_share for fi in financial_line_items if
     // fi.earnings_per_share is not None]
@@ -263,30 +264,39 @@ public class AgentPeterLynchTool {
     return new Result(rawScore, 0, String.join("; ", details));
   }
 
-  //
-  //
+  /**
+   * Evaluate basic fundamentals:
+   *
+   * <ul>
+   *   <li>Debt/Equity
+   *   <li>Operating margin (or gross margin)
+   *   <li>Positive Free Cash Flow
+   * </ul>
+   *
+   * Lynch avoided heavily indebted or complicated businesses.
+   */
   public Result analyzeLynchFundamentals(List<LineItem> lineItems) {
-    //    """
-    //    Evaluate basic fundamentals:
-    //      - Debt/Equity
-    //      - Operating margin (or gross margin)
-    //      - Positive Free Cash Flow
-    //    Lynch avoided heavily indebted or complicated businesses.
-    //    """
-    //    if not financial_line_items:
-    //        return {"score": 0, "details": "Insufficient fundamentals data"}
-    //
+    if (lineItems == null || lineItems.isEmpty()) {
+      return new Result(0, 0, "Insufficient fundamentals data");
+    }
+
     List<String> details = new ArrayList<>();
     int rawScore = 0;
-    //
-    //    # 1) Debt-to-Equity
-    //    debt_values = [fi.total_debt for fi in financial_line_items if fi.total_debt is not
-    // None]
-    //    eq_values = [fi.shareholders_equity for fi in financial_line_items if
-    // fi.shareholders_equity is not None]
-    //    if debt_values and eq_values and len(debt_values) == len(eq_values) and len(debt_values)
-    // >
-    // 0:
+
+    // 1) Debt-to-Equity
+
+    List<BigDecimal> debtValues =
+        lineItems.stream()
+            .filter(l -> l.get("total_debt") != null)
+            .map(l -> l.get("total_debt"))
+            .toList();
+    List<BigDecimal> equityValues =
+        lineItems.stream()
+            .filter(l -> l.get("shareholders_equity") != null)
+            .map(l -> l.get("shareholders_equity"))
+            .toList();
+
+    // if debt_values and eq_values and len(debt_values) == len(eq_values) and len(debt_values) > 0:
     //        recent_debt = debt_values[0]
     //        recent_equity = eq_values[0] if eq_values[0] else 1e-9
     //        de_ratio = recent_debt / recent_equity
@@ -447,14 +457,17 @@ public class AgentPeterLynchTool {
     return new Result(rawScore, 0, String.join("; ", details));
   }
 
+  /**
+   * Simple insider-trade analysis:
+   *
+   * <ul>
+   *   <li>If there's heavy insider buying, it's a positive sign.
+   *   <li>If there's mostly selling, it's a negative sign.
+   *   <li>Otherwise, neutral.
+   * </ul>
+   */
   public Result analyzeInsiderActivity(List<InsiderTrade> insiderTrades) {
-    // def analyze_insider_activity(insider_trades: list) -> dict:
-    //    """
-    //    Simple insider-trade analysis:
-    //      - If there's heavy insider buying, it's a positive sign.
-    //      - If there's mostly selling, it's a negative sign.
-    //      - Otherwise, neutral.
-    //    """
+
     // Default 5 (neutral)
     int score = 5;
     List<String> details = new ArrayList<>();
@@ -496,7 +509,7 @@ public class AgentPeterLynchTool {
 
   private AgentSignal generateOutput(
       String ticker, AnalysisResult analysisResult, ToolContext toolContext) {
-    StringBuilder buffettOutput = new StringBuilder();
+    StringBuilder output = new StringBuilder();
 
     // LOGGER.info("toolContext: {}", toolContext.getContext());
     McpToolUtils.getMcpExchange(toolContext)
@@ -527,7 +540,7 @@ public class AgentPeterLynchTool {
                 McpSchema.CreateMessageResult llmResponse =
                     exchange.createMessage(llmMessageRequest);
 
-                buffettOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
+                output.append(((McpSchema.TextContent) llmResponse.content()).text());
               }
 
               exchange.loggingNotification(
@@ -537,7 +550,7 @@ public class AgentPeterLynchTool {
                       .build());
             });
 
-    String withoutMarkdown = removeMarkdown(buffettOutput.toString());
+    String withoutMarkdown = removeMarkdown(output.toString());
     LOGGER.info("Got sampling response '{}'", withoutMarkdown);
 
     try {
