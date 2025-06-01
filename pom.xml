@@ -16,6 +16,7 @@
 	<description>AI Hedge Fund in Spring AI</description>
 	<modules>
 		<module>financial-datasets</module>
+		<module>agent-common</module>
 		<module>agent-warren-buffet</module>
 		<module>agent-michael-burry</module>
 		<module>agent-peter-lynch</module>

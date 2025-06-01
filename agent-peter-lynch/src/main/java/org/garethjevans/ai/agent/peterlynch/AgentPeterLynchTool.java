@@ -12,6 +12,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
+import org.garethjevans.ai.common.AgentSignal;
+import org.garethjevans.ai.common.Result;
+import org.garethjevans.ai.common.Signal;
 import org.garethjevans.ai.fd.FinancialDatasetsService;
 import org.garethjevans.ai.fd.LineItem;
 import org.garethjevans.ai.fd.Metrics;
@@ -58,7 +61,7 @@ public class AgentPeterLynchTool {
   @Tool(
       name = "peter_lynch_analysis",
       description = "Performs stock analysis using PeterLynch's methods by ticker")
-  public Map<String, PeterLynchSignal> performAnalysisForTicker(
+  public Map<String, AgentSignal> performAnalysisForTicker(
       @ToolParam(description = "Ticker to perform analysis for") String ticker,
       ToolContext toolContext) {
     LOGGER.info("Analyzes stocks using Peter Lynch's principles and LLM reasoning.");
@@ -68,7 +71,7 @@ public class AgentPeterLynchTool {
 
     List<String> tickers = List.of(ticker);
 
-    Map<String, PeterLynchSignal> peterLynchAnalysis = new HashMap<>();
+    Map<String, AgentSignal> peterLynchAnalysis = new HashMap<>();
 
     for (String t : tickers) {
       updateProgress(t, "Fetching financial metrics");
@@ -582,15 +585,14 @@ public class AgentPeterLynchTool {
       LOGGER.info("Got intrinsic value analysis: {}", intrinsicValueAnalysis);
 
       // Calculate total score
-      BigDecimal totalScore =
-          fundamentalAnalysis
-              .score()
-              .add(consistencyAnalysis.score())
-              .add(moatAnalysis.score())
-              .add(mgmtAnalysis.score());
+      int totalScore =
+          fundamentalAnalysis.score()
+              + consistencyAnalysis.score()
+              + moatAnalysis.score()
+              + mgmtAnalysis.score();
 
-      BigDecimal maxPossibleScore =
-          consistencyAnalysis.maxScore().add(moatAnalysis.maxScore()).add(mgmtAnalysis.maxScore());
+      int maxPossibleScore =
+          consistencyAnalysis.maxScore() + moatAnalysis.maxScore() + mgmtAnalysis.maxScore();
 
       LOGGER.info("Got a score of {} out of a total {}", totalScore, maxPossibleScore);
 
@@ -607,11 +609,15 @@ public class AgentPeterLynchTool {
       LOGGER.info("Got margin of safety: {}", marginOfSafety);
 
       Signal signal = null;
-      if ((totalScore.compareTo(new BigDecimal("0.7").multiply(maxPossibleScore)) >= 0)
+      if ((new BigDecimal(totalScore)
+                  .compareTo(new BigDecimal("0.7").multiply(new BigDecimal(maxPossibleScore)))
+              >= 0)
           && (marginOfSafety != null)
           && (marginOfSafety.compareTo(new BigDecimal("0.3")) >= 0)) {
         signal = Signal.bullish;
-      } else if ((totalScore.compareTo(new BigDecimal("0.3").multiply(maxPossibleScore)) <= 0)
+      } else if ((new BigDecimal(totalScore)
+                  .compareTo(new BigDecimal("0.3").multiply(new BigDecimal(maxPossibleScore)))
+              <= 0)
           || (marginOfSafety != null && marginOfSafety.compareTo(new BigDecimal("-0.3")) < 0)) {
         signal = Signal.bearish;
       } else {
@@ -635,7 +641,7 @@ public class AgentPeterLynchTool {
 
       updateProgress(t, "Generating Peter Lynch analysis");
 
-      PeterLynchSignal output = generatePeterLynchOutput(t, analysisResult, toolContext);
+      AgentSignal output = generatePeterLynchOutput(t, analysisResult, toolContext);
 
       // Store analysis in consistent format with other agents
       peterLynchAnalysis.put(ticker, output);
@@ -656,8 +662,7 @@ public class AgentPeterLynchTool {
    */
   public FundamentalsResult analyzeFundamentals(List<Metrics> metrics) {
     if (metrics == null || metrics.isEmpty()) {
-      return new FundamentalsResult(
-          BigDecimal.ZERO, new BigDecimal(7), "Insufficient fundamental data", null);
+      return new FundamentalsResult(0, 7, "Insufficient fundamental data", null);
     }
 
     Metrics latestMetrics = metrics.get(0);
@@ -708,13 +713,12 @@ public class AgentPeterLynchTool {
       reasoning.add("Current ratio data not available");
     }
 
-    return new FundamentalsResult(
-        new BigDecimal(score), new BigDecimal(7), String.join("; ", reasoning), latestMetrics);
+    return new FundamentalsResult(score, 7, String.join("; ", reasoning), latestMetrics);
   }
 
   public Result analyzeConsistency(List<LineItem> lineItems) {
     if (lineItems.size() < 4) {
-      return new Result(new BigDecimal(0), new BigDecimal(3), "Insufficient historical data");
+      return new Result(0, 3, "Insufficient historical data");
     }
 
     int score = 0;
@@ -760,7 +764,7 @@ public class AgentPeterLynchTool {
       reasoning.add("Insufficient earnings data for trend analysis");
     }
 
-    return new Result(new BigDecimal(score), new BigDecimal(3), String.join("; ", reasoning));
+    return new Result(score, 3, String.join("; ", reasoning));
   }
 
   /**
@@ -773,8 +777,7 @@ public class AgentPeterLynchTool {
    */
   public Result analyzeMoat(List<Metrics> metrics) {
     if (metrics.size() < 3) {
-      return new Result(
-          new BigDecimal(0), new BigDecimal(3), "Insufficient data for moat analysis");
+      return new Result(0, 3, "Insufficient data for moat analysis");
     }
 
     List<String> reasoning = new ArrayList<>();
@@ -817,7 +820,7 @@ public class AgentPeterLynchTool {
       reasoning.add("Both ROE and margin stability indicate a solid moat");
     }
 
-    return new Result(new BigDecimal(moatScore), new BigDecimal(3), String.join(", ", reasoning));
+    return new Result(moatScore, 3, String.join(", ", reasoning));
   }
 
   /**
@@ -831,8 +834,7 @@ public class AgentPeterLynchTool {
    */
   public Result analyzeManagementQuality(List<LineItem> lineItems) {
     if (lineItems == null || lineItems.isEmpty()) {
-      return new Result(
-          new BigDecimal(0), new BigDecimal(2), "Insufficient data for management analysis");
+      return new Result(0, 2, "Insufficient data for management analysis");
     }
 
     int score = 0;
@@ -861,7 +863,7 @@ public class AgentPeterLynchTool {
       reasoning.add("No or minimal dividends paid");
     }
 
-    return new Result(new BigDecimal(score), new BigDecimal(2), String.join("; ", reasoning));
+    return new Result(score, 2, String.join("; ", reasoning));
   }
 
   /**
@@ -962,7 +964,7 @@ public class AgentPeterLynchTool {
         "Intrinsic value calculated using DCF model with owner earnings");
   }
 
-  private PeterLynchSignal generatePeterLynchOutput(
+  private AgentSignal generatePeterLynchOutput(
       String ticker, AnalysisResult analysisResult, ToolContext toolContext) {
     StringBuilder buffettOutput = new StringBuilder();
 
@@ -1009,10 +1011,10 @@ public class AgentPeterLynchTool {
     LOGGER.info("Got sampling response '{}'", withoutMarkdown);
 
     try {
-      return objectMapper.readValue(withoutMarkdown, PeterLynchSignal.class);
+      return objectMapper.readValue(withoutMarkdown, AgentSignal.class);
     } catch (JsonProcessingException e) {
       LOGGER.warn("Error in analysis, defaulting to neutral", e);
-      return new PeterLynchSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
+      return new AgentSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
     }
   }
 
@@ -1090,11 +1092,6 @@ public class AgentPeterLynchTool {
     LOGGER.info("{}: {} - {}", AGENT_NAME, ticker, message);
   }
 
-  public record Result(
-      @JsonProperty("score") BigDecimal score,
-      @JsonProperty("max_score") BigDecimal maxScore,
-      @JsonProperty("details") String details) {}
-
   public record OwnerEarningsResult(
       @JsonProperty("owner_earnings") BigDecimal ownerEarnings,
       @JsonProperty("components") Components components,
@@ -1106,15 +1103,15 @@ public class AgentPeterLynchTool {
       @JsonProperty("maintenance_capex") BigDecimal maintenanceCapex) {}
 
   public record FundamentalsResult(
-      @JsonProperty("score") BigDecimal score,
-      @JsonProperty("max_score") BigDecimal maxScore,
+      @JsonProperty("score") int score,
+      @JsonProperty("max_score") int maxScore,
       @JsonProperty("details") String details,
       @JsonProperty("metrics") Metrics metrics) {}
 
   public record AnalysisResult(
       @JsonProperty("signal") Signal signal,
-      @JsonProperty("score") BigDecimal score,
-      @JsonProperty("max_score") BigDecimal maxScore,
+      @JsonProperty("score") int score,
+      @JsonProperty("max_score") int maxScore,
       @JsonProperty("fundamental_analysis") FundamentalsResult fundamentalAnalysis,
       @JsonProperty("consistency_analysis") Result consistencyAnalysis,
       @JsonProperty("moat_analysis") Result moatAnalysis,
@@ -1134,15 +1131,4 @@ public class AgentPeterLynchTool {
       @JsonProperty("discount_rate") BigDecimal discountRate,
       @JsonProperty("terminal_multiple") BigDecimal terminalMultiple,
       @JsonProperty("projection_years") int projectionYears) {}
-
-  public record PeterLynchSignal(
-      @JsonProperty("signal") Signal signal,
-      @JsonProperty("confidence") Float confidence,
-      @JsonProperty("reasoning") String reasoning) {}
-
-  public enum Signal {
-    bullish,
-    bearish,
-    neutral
-  }
 }

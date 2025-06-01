@@ -11,6 +11,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.garethjevans.ai.common.AgentSignal;
+import org.garethjevans.ai.common.Result;
+import org.garethjevans.ai.common.Signal;
 import org.garethjevans.ai.fd.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,17 +39,11 @@ public class AgentMichaelBurryTool {
     this.objectMapper = objectMapper;
   }
 
-  /**
-   * Analyse stocks using Michael Burry's deep‑value, contrarian framework.
-   *
-   * @param ticker
-   * @param toolContext
-   * @return
-   */
+  /** Analyse stocks using Michael Burry's deep‑value, contrarian framework. */
   @Tool(
       name = "michael_burry_analysis",
       description = "Performs stock analysis using Michael Burry methods by ticker")
-  public Map<String, MichaelBurrySignal> performAnalysisForTicker(
+  public Map<String, AgentSignal> performAnalysisForTicker(
       @ToolParam(description = "Ticker to perform analysis for") String ticker,
       ToolContext toolContext) {
     LOGGER.info("Analyzes stocks using Michael Burry's principles and LLM reasoning.");
@@ -56,7 +53,7 @@ public class AgentMichaelBurryTool {
 
     List<String> tickers = List.of(ticker);
 
-    Map<String, MichaelBurrySignal> burryAnalysis = new HashMap<>();
+    Map<String, AgentSignal> burryAnalysis = new HashMap<>();
 
     for (String t : tickers) {
       updateProgress(t, "Fetching financial metrics");
@@ -91,10 +88,6 @@ public class AgentMichaelBurryTool {
       var marketCap = financialDatasets.getMarketCap(ticker, endDate);
       LOGGER.info("Got market cap: {}", marketCap);
 
-      //      updateProgress(t, "Analyzing fundamentals");
-      //      var fundamentalAnalysis = analyzeFundamentals(metrics);
-      //      LOGGER.info("Got fundamental analysis: {}", fundamentalAnalysis);
-
       //  ------------------------------------------------------------------
       //  Run sub‑analyses
       //  ------------------------------------------------------------------
@@ -122,6 +115,7 @@ public class AgentMichaelBurryTool {
               + balanceSheetAnalysis.score()
               + insiderAnalysis.score()
               + contrarianAnalysis.score();
+
       int maxScore =
           valueAnalysis.maxScore()
               + balanceSheetAnalysis.maxScore()
@@ -156,46 +150,11 @@ public class AgentMichaelBurryTool {
               contrarianAnalysis,
               marketCap);
 
-      // progress.update_status("michael_burry_agent", ticker, "Generating LLM output")
-      //  burry_output = _generate_burry_output(
-      //            ticker=ticker,
-      //            analysis_data=analysis_data,
-      //            model_name=state["metadata"]["model_name"],
-      //            model_provider=state["metadata"]["model_provider"],
-      //        )
-      //
-      //        burry_analysis[ticker] = {
-      //            "signal": burry_output.signal,
-      //            "confidence": burry_output.confidence,
-      //            "reasoning": burry_output.reasoning,
-      //        }
-      //
-      //        progress.update_status("michael_burry_agent", ticker, "Done")
-      //
-      //    # ----------------------------------------------------------------------
-      //    # Return to the graph
-      //    # ----------------------------------------------------------------------
-      //    message = HumanMessage(content=json.dumps(burry_analysis), name="michael_burry_agent")
-      //
-      //    if state["metadata"].get("show_reasoning"):
-      //        show_agent_reasoning(burry_analysis, "Michael Burry Agent")
-      //
-      //    state["data"]["analyst_signals"]["michael_burry_agent"] = burry_analysis
-      //
-      //    progress.update_status("michael_burry_agent", None, "Done")
-      //
-      //    return {"messages": [message], "data": state["data"]}
-      //
-      //
-      // ###############################################################################
-      // # Sub‑analysis helpers
-      // ###############################################################################
-      //
       LOGGER.info("Got a score of {} out of a total {}", totalScore, maxScore);
 
       updateProgress(t, "Generating Michael Burry analysis");
 
-      MichaelBurrySignal output = generateOutput(t, analysisResult, toolContext);
+      AgentSignal output = generateOutput(t, analysisResult, toolContext);
 
       // Store analysis in consistent format with other agents
       burryAnalysis.put(ticker, output);
@@ -208,7 +167,7 @@ public class AgentMichaelBurryTool {
     return burryAnalysis;
   }
 
-  //    """Free cash‑flow yield, EV/EBIT, other classic deep‑value metrics."""
+  /** Free cash‑flow yield, EV/EBIT, other classic deep‑value metrics. */
   public Result analyzeValue(
       List<Metrics> metrics, List<LineItem> lineItems, BigDecimal marketCap) {
 
@@ -261,178 +220,127 @@ public class AgentMichaelBurryTool {
     return new Result(score, maxScore, String.join("; ", details));
   }
 
-  //
-  // ----- Balance sheet --------------------------------------------------------
-  public Result analyzeBalanceSheet(List<Metrics> metric, List<LineItem> lineItem) {
-    // def _analyze_balance_sheet(metrics, line_items):
-    //    """Leverage and liquidity checks."""
-    //
+  /** Leverage and liquidity checks. */
+  public Result analyzeBalanceSheet(List<Metrics> metrics, List<LineItem> lineItem) {
+
     int maxScore = 3;
     int score = 0;
     List<String> details = new ArrayList<>();
-    //
-    //    latest_metrics = metrics[0] if metrics else None
-    //    latest_item = _latest_line_item(line_items)
-    //
-    //    debt_to_equity = getattr(latest_metrics, "debt_to_equity", None) if latest_metrics else
-    // None
-    //    if debt_to_equity is not None:
-    //        if debt_to_equity < 0.5:
-    //            score += 2
-    //            details.add(f"Low D/E {debt_to_equity:.2f}")
-    //        elif debt_to_equity < 1:
-    //            score += 1
-    //            details.add(f"Moderate D/E {debt_to_equity:.2f}")
-    //        else:
-    //            details.add(f"High leverage D/E {debt_to_equity:.2f}")
-    //    else:
-    //        details.add("Debt‑to‑equity data unavailable")
-    //
-    //    # Quick liquidity sanity check (cash vs total debt)
-    //    if latest_item is not None:
-    //        cash = getattr(latest_item, "cash_and_equivalents", None)
-    //        total_debt = getattr(latest_item, "total_debt", None)
-    //        if cash is not None and total_debt is not None:
-    //            if cash > total_debt:
-    //                score += 1
-    //                details.add("Net cash position")
-    //            else:
-    //                details.add("Net debt position")
-    //        else:
-    //            details.add("Cash/debt data unavailable")
-    //
-    //    return {"score": score, "max_score": max_score, "details": "; ".join(details)}
-    //
+
+    Metrics latestMetrics = metrics.get(0);
+    LineItem latestLineItem = lineItem.get(0);
+
+    BigDecimal debtToEquity = latestMetrics.debtToEquity();
+    if (debtToEquity != null) {
+      if (debtToEquity.compareTo(new BigDecimal("0.5")) < 0) {
+        score += 2;
+        details.add("Low D/E " + debtToEquity);
+      } else if (debtToEquity.compareTo(new BigDecimal("1.0")) < 0) {
+        score += 1;
+        details.add("Moderate D/E " + debtToEquity);
+      } else {
+        details.add("High leverage D/E " + debtToEquity);
+      }
+    } else {
+      details.add("Debt‑to‑equity data unavailable");
+    }
+
+    if (latestLineItem != null) {
+      BigDecimal cash = latestLineItem.get("cash_and_equivalents");
+      BigDecimal totalDebt = latestLineItem.get("total_debt");
+      if (cash != null && totalDebt != null) {
+        if (cash.compareTo(totalDebt) > 0) {
+          score += 1;
+          details.add("Net cash position");
+        } else {
+          details.add("Net debt position");
+        }
+      } else {
+        details.add("Cash/debt data unavailable");
+      }
+    }
+
     return new Result(score, maxScore, String.join("; ", details));
   }
 
-  //
-  // # ----- Insider activity -----------------------------------------------------
-  //
-  /** Net insider buying over the last 12 months acts as a hard catalyst.""" */
+  /** Net insider buying over the last 12 months acts as a hard catalyst. */
   public Result analyseInsiderActivity(List<InsiderTrade> insiderTrades) {
-    // def _analyze_insider_activity(insider_trades):
-    //
     int maxScore = 2;
     int score = 0;
     List<String> details = new ArrayList<>();
 
-    //    max_score = 2
-    //    score = 0
-    //    details: list[str] = []
-    //
-    //    if not insider_trades:
-    //        details.add("No insider trade data")
-    //        return {"score": score, "max_score": max_score, "details": "; ".join(details)}
-    //
-    //    shares_bought = sum(t.transaction_shares or 0 for t in insider_trades if
+    if (insiderTrades.isEmpty()) {
+      details.add("No insider trade data");
+      return new Result(score, maxScore, String.join("; ", details));
+    }
+
+    // shares_bought = sum(t.transaction_shares or 0 for t in insider_trades if
     // (t.transaction_shares or 0) > 0)
-    //    shares_sold = abs(sum(t.transaction_shares or 0 for t in insider_trades if
+    BigDecimal sharesBought =
+        insiderTrades.stream()
+            .map(t -> t.transactionShares() != null ? t.transactionShares() : BigDecimal.ZERO)
+            .filter(shares -> shares.compareTo(BigDecimal.ZERO) > 0)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    // shares_sold = abs(sum(t.transaction_shares or 0 for t in insider_trades if
     // (t.transaction_shares or 0) < 0))
-    //    net = shares_bought - shares_sold
-    //    if net > 0:
-    //        score += 2 if net / max(shares_sold, 1) > 1 else 1
-    //        details.add(f"Net insider buying of {net:,} shares")
-    //    else:
-    //        details.add("Net insider selling")
-    //
-    //    return {"score": score, "max_score": max_score, "details": "; ".join(details)}
+    BigDecimal sharesSold =
+        insiderTrades.stream()
+            .map(t -> t.transactionShares() != null ? t.transactionShares() : BigDecimal.ZERO)
+            .filter(shares -> shares.compareTo(BigDecimal.ZERO) < 0)
+            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .abs();
+
+    // net = shares_bought - shares_sold
+    BigDecimal net = sharesBought.add(sharesSold.negate());
+
+    if (net.compareTo(BigDecimal.ZERO) > 0) {
+      score +=
+          (net.divide(sharesSold.max(BigDecimal.ONE), 2, RoundingMode.HALF_UP)
+                      .compareTo(BigDecimal.ONE)
+                  > 0
+              ? 2
+              : 1);
+      details.add("Net insider buying of " + net + " shares");
+    } else {
+      details.add("Net insider selling");
+    }
+
     return new Result(score, maxScore, String.join("; ", details));
   }
 
+  /** Very rough gauge: a wall of recent negative headlines can be a *positive* for a contrarian. */
   public Result analyzeContrarianSentiment(List<CompanyNews> news) {
-    // def _analyze_contrarian_sentiment(news):
-    //    """Very rough gauge: a wall of recent negative headlines can be a *positive* for a
-    // contrarian."""
-    //
+
     int maxScore = 1;
     int score = 0;
     List<String> details = new ArrayList<>();
-    //
-    //    if not news:
-    //        details.add("No recent news")
-    //        return {"score": score, "max_score": max_score, "details": "; ".join(details)}
-    //
-    //    # Count negative sentiment articles
-    //    sentiment_negative_count = sum(
-    //        1 for n in news if n.sentiment and n.sentiment.lower() in ["negative", "bearish"]
-    //    )
-    //
-    //    if sentiment_negative_count >= 5:
-    //        score += 1  # The more hated, the better (assuming fundamentals hold up)
-    //        details.add(f"{sentiment_negative_count} negative headlines (contrarian
-    // opportunity)")
-    //    else:
-    //        details.add("Limited negative press")
-    //
-    //    return {"score": score, "max_score": max_score, "details": "; ".join(details)}
+
+    if (news.isEmpty()) {
+      details.add("No recent news");
+      return new Result(score, maxScore, String.join("; ", details));
+    }
+
+    // Count negative sentiment articles
+    long negativeCount =
+        news.stream()
+            .filter(
+                n ->
+                    "negative".equalsIgnoreCase(n.sentiment())
+                        || "bearish".equalsIgnoreCase(n.sentiment()))
+            .count();
+
+    if (negativeCount >= 5) {
+      score += 1;
+      details.add(negativeCount + " negative headline(s) (contrarian opportunity)");
+    } else {
+      details.add("Limited negative press");
+    }
+
     return new Result(score, maxScore, String.join("; ", details));
   }
 
-  //
-  //
-  // ###############################################################################
-  // # LLM generation
-  // ###############################################################################
-  //
-  // def _generate_burry_output(
-  //    ticker: str,
-  //    analysis_data: dict,
-  //    *,
-  //    model_name: str,
-  //    model_provider: str,
-  // ) -> MichaelBurrySignal:
-  //    """Call the LLM to craft the final trading signal in Burry's voice."""
-  //
-  //    template = ChatPromptTemplate.from_messages(
-  //        [
-  //            (
-  //                "system",
-
-  //                """,
-  //            ),
-  //            (
-  //                "human",
-  //                """Based on the following data, create the investment signal as Michael
-  // Burry
-  // would:
-  //
-  //                Analysis Data for {ticker}:
-  //                {analysis_data}
-  //
-  //                Return the trading signal in the following JSON format exactly:
-  //                {{
-  //                  "signal": "bullish" | "bearish" | "neutral",
-  //                  "confidence": float between 0 and 100,
-  //                  "reasoning": "string"
-  //                }}
-  //                """,
-  //            ),
-  //        ]
-  //    )
-  //
-  //    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2),
-  // "ticker":
-  // ticker})
-  //
-  //    # Default fallback signal in case parsing fails
-  //    def create_default_michael_burry_signal():
-  //        return MichaelBurrySignal(signal="neutral", confidence=0.0, reasoning="Parsing error
-  // –
-  // defaulting to neutral")
-  //
-  //    return call_llm(
-  //        prompt=prompt,
-  //        model_name=model_name,
-  //        model_provider=model_provider,
-  //        pydantic_model=MichaelBurrySignal,
-  //        agent_name="michael_burry_agent",
-  //        default_factory=create_default_michael_burry_signal,
-  //    )
-
-  //    data = state["data"]
-
-  private MichaelBurrySignal generateOutput(
+  private AgentSignal generateOutput(
       String ticker, AnalysisResult analysisResult, ToolContext toolContext) {
     StringBuilder buffettOutput = new StringBuilder();
 
@@ -479,10 +387,10 @@ public class AgentMichaelBurryTool {
     LOGGER.info("Got sampling response '{}'", withoutMarkdown);
 
     try {
-      return objectMapper.readValue(withoutMarkdown, MichaelBurrySignal.class);
+      return objectMapper.readValue(withoutMarkdown, AgentSignal.class);
     } catch (JsonProcessingException e) {
       LOGGER.warn("Error in analysis, defaulting to neutral", e);
-      return new MichaelBurrySignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
+      return new AgentSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
     }
   }
 
@@ -556,27 +464,6 @@ public class AgentMichaelBurryTool {
     LOGGER.info("{}: {} - {}", AGENT_NAME, ticker, message);
   }
 
-  public record Result(
-      @JsonProperty("score") int score,
-      @JsonProperty("max_score") int maxScore,
-      @JsonProperty("details") String details) {}
-
-  public record OwnerEarningsResult(
-      @JsonProperty("owner_earnings") BigDecimal ownerEarnings,
-      @JsonProperty("components") Components components,
-      @JsonProperty("details") String details) {}
-
-  public record Components(
-      @JsonProperty("net_income") BigDecimal netIncome,
-      @JsonProperty("depreciation") BigDecimal depreciation,
-      @JsonProperty("maintenance_capex") BigDecimal maintenanceCapex) {}
-
-  public record FundamentalsResult(
-      @JsonProperty("score") BigDecimal score,
-      @JsonProperty("max_score") BigDecimal maxScore,
-      @JsonProperty("details") String details,
-      @JsonProperty("metrics") Metrics metrics) {}
-
   public record AnalysisResult(
       @JsonProperty("signal") Signal signal,
       @JsonProperty("score") int score,
@@ -586,27 +473,4 @@ public class AgentMichaelBurryTool {
       @JsonProperty("insider_analysis") Result insiderAnalysis,
       @JsonProperty("contrarian_analysis") Result contrarianAnalysis,
       @JsonProperty("market_cap") BigDecimal marketCap) {}
-
-  public record IntrinsicValueAnalysisResult(
-      @JsonProperty("intrinsic_value") BigDecimal intrinsicValue,
-      @JsonProperty("owner_earnings") BigDecimal ownerEarnings,
-      @JsonProperty("assumptions") Assumptions assumptions,
-      @JsonProperty("details") String details) {}
-
-  public record Assumptions(
-      @JsonProperty("growth_rate") BigDecimal growthRate,
-      @JsonProperty("discount_rate") BigDecimal discountRate,
-      @JsonProperty("terminal_multiple") BigDecimal terminalMultiple,
-      @JsonProperty("projection_years") int projectionYears) {}
-
-  public record MichaelBurrySignal(
-      @JsonProperty("signal") Signal signal,
-      @JsonProperty("confidence") Float confidence,
-      @JsonProperty("reasoning") String reasoning) {}
-
-  public enum Signal {
-    bullish,
-    bearish,
-    neutral
-  }
 }
