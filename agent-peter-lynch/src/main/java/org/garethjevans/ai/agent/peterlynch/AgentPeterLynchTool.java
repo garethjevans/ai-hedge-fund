@@ -236,10 +236,10 @@ public class AgentPeterLynchTool {
 
     // 2) EPS Growth
     var epsValues =
-            lineItems.stream()
-                    .filter(l -> l.get("earnings_per_share") != null)
-                    .map(l -> l.get("earnings_per_share"))
-                    .toList();
+        lineItems.stream()
+            .filter(l -> l.get("earnings_per_share") != null)
+            .map(l -> l.get("earnings_per_share"))
+            .toList();
 
     if (epsValues.size() >= 2) {
       BigDecimal latestEps = epsValues.getFirst();
