@@ -246,30 +246,30 @@ public class AgentPeterLynchTool {
       BigDecimal oldestEps = epsValues.getLast();
 
       //        if abs(older_eps) > 1e-9:
-      //            eps_growth = (latest_eps - older_eps) / abs(older_eps)
-      //            if eps_growth > 0.25:
-      //                raw_score += 3
-      //                details.append(f"Strong EPS growth: {eps_growth:.1%}")
-      //            elif eps_growth > 0.10:
-      //                raw_score += 2
-      //                details.append(f"Moderate EPS growth: {eps_growth:.1%}")
-      //            elif eps_growth > 0.02:
-      //                raw_score += 1
-      //                details.append(f"Slight EPS growth: {eps_growth:.1%}")
-      //            else:
-      //                details.append(f"Minimal or negative EPS growth: {eps_growth:.1%}")
-      //        else:
-      //            details.append("Older EPS is near zero; skipping EPS growth calculation.")
-
+      if (oldestEps.abs().compareTo(new BigDecimal("1e-9")) > 0) {
+        BigDecimal epsGrowth =
+            (latestEps.subtract(oldestEps)).divide(oldestEps.abs(), 2, RoundingMode.HALF_UP);
+        if (epsGrowth.compareTo(new BigDecimal("0.25")) > 0) {
+          rawScore += 3;
+          details.add("Strong EPS growth: " + epsGrowth);
+        } else if (epsGrowth.compareTo(new BigDecimal("0.10")) > 0) {
+          rawScore += 2;
+          details.add("Moderate EPS growth: " + epsGrowth);
+        } else if (epsGrowth.compareTo(new BigDecimal("0.02")) > 0) {
+          rawScore += 1;
+          details.add("Slight EPS growth: " + epsGrowth);
+        } else {
+          details.add("Minimal or negative EPS growth: " + epsGrowth);
+        }
+      } else {
+        details.add("Older EPS is near zero; skipping EPS growth calculation.");
+      }
     } else {
       details.add("Not enough EPS data for growth calculation.");
     }
 
-    //
-    //    # raw_score can be up to 6 => scale to 0–10
-    //    final_score = min(10, (raw_score / 6) * 10)
-    //    return {"score": final_score, "details": "; ".join(details)}
-    return new Result(rawScore, 0, String.join("; ", details));
+    int finalScore = Math.min(10, (rawScore / 6) * 10);
+    return new Result(finalScore, 0, String.join("; ", details));
   }
 
   /**
