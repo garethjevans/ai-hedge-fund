@@ -5,42 +5,35 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT,
+    properties = {
+      "spring.ai.openai.api-key=${OPENAI_KEY}",
+      "spring.ai.openai.chat.model=gpt-4o-mini",
+      "spring.ai.mcp.client.enabled=true",
+      // "spring.ai.mcp.client.toolcallback.enabled=true",
+      "spring.ai.mcp.client.type=sync",
+      "spring.ai.mcp.client.sse.connections.michaelburry.url=http://localhost:10091/",
+      // "spring.ai.mcp.client.initialized=false",
+    })
 public class AgentTest {
 
-  @Autowired private SyncMcpToolCallbackProvider callbackProvider;
+  @Autowired private ChatModel model;
 
   @Test
   public void canInvokeTool() {
-    assertThat(callbackProvider).isNotNull();
-
-    OpenAiApi api = OpenAiApi.builder().apiKey(System.getenv("OPENAI_KEY")).build();
-    ChatModel model = OpenAiChatModel.builder().openAiApi(api).build();
+    assertThat(model).isNotNull();
 
     ChatClient client = ChatClient.builder(model).build();
     assertThat(client).isNotNull();
 
-    String response =
-        client
-            .prompt(
-                new Prompt(
-                    "What AI Stock agents to you have available?",
-                    OpenAiChatOptions.builder()
-                        .toolCallbacks(callbackProvider.getToolCallbacks())
-                        .build()))
-            .call()
-            .content();
+    String response = client.prompt("What tools do you have available?").call().content();
 
     System.out.println(response);
-    
+
     assertThat(response).isNotNull();
   }
 }
