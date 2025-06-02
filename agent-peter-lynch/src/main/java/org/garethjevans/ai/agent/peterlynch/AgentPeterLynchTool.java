@@ -7,10 +7,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import org.garethjevans.ai.common.AgentSignal;
 import org.garethjevans.ai.common.Result;
 import org.garethjevans.ai.common.Signal;
@@ -304,39 +301,48 @@ public class AgentPeterLynchTool {
             .map(l -> l.get("shareholders_equity"))
             .toList();
 
-    // if debt_values and eq_values and len(debt_values) == len(eq_values) and len(debt_values) > 0:
-    //        recent_debt = debt_values[0]
-    //        recent_equity = eq_values[0] if eq_values[0] else 1e-9
-    //        de_ratio = recent_debt / recent_equity
-    //        if de_ratio < 0.5:
-    //            raw_score += 2
-    //            details.append(f"Low debt-to-equity: {de_ratio:.2f}")
-    //        elif de_ratio < 1.0:
-    //            raw_score += 1
-    //            details.append(f"Moderate debt-to-equity: {de_ratio:.2f}")
-    //        else:
-    //            details.append(f"High debt-to-equity: {de_ratio:.2f}")
-    //    else:
-    //        details.append("No consistent debt/equity data available.")
-    //
+    if (debtValues.size() == equityValues.size() && !debtValues.isEmpty()) {
+      BigDecimal recentDebt = debtValues.get(0);
+      BigDecimal recentEquity =
+          equityValues.get(0).compareTo(BigDecimal.ZERO) == 0
+              ? new BigDecimal("1e-9")
+              : equityValues.get(0);
+      BigDecimal deRatio = recentDebt.divide(recentEquity, 2, RoundingMode.HALF_UP);
+
+      if (deRatio.compareTo(new BigDecimal("0.5")) < 0) {
+        rawScore += 2;
+        details.add("Low debt-to-equity: " + deRatio);
+      } else if (deRatio.compareTo(new BigDecimal("1.0")) < 0) {
+        rawScore += 1;
+        details.add("Moderate debt-to-equity: " + deRatio);
+      } else {
+        details.add("High debt-to-equity: " + deRatio);
+      }
+    } else {
+      details.add("No consistent debt/equity data available.");
+    }
+
     // 2) Operating Margin
     List<BigDecimal> operatingMarginValues =
         lineItems.stream()
             .filter(l -> l.get("operating_margin") != null)
             .map(l -> l.get("operating_margin"))
             .toList();
-    //    if om_values:
-    //        om_recent = om_values[0]
-    //        if om_recent > 0.20:
-    //            raw_score += 2
-    //            details.append(f"Strong operating margin: {om_recent:.1%}")
-    //        elif om_recent > 0.10:
-    //            raw_score += 1
-    //            details.append(f"Moderate operating margin: {om_recent:.1%}")
-    //        else:
-    //            details.append(f"Low operating margin: {om_recent:.1%}")
-    //    else:
-    //        details.append("No operating margin data available.")
+
+    if (!operatingMarginValues.isEmpty()) {
+      BigDecimal operatingMarginRecent = operatingMarginValues.get(0);
+      if (operatingMarginRecent.compareTo(new BigDecimal("0.20")) > 0) {
+        rawScore += 2;
+        details.add("Strong operating margin: " + operatingMarginRecent);
+      } else if (operatingMarginRecent.compareTo(new BigDecimal("0.10")) > 0) {
+        rawScore += 1;
+        details.add("Moderate operating margin: " + operatingMarginRecent);
+      } else {
+        details.add("Low operating margin: " + operatingMarginRecent);
+      }
+    } else {
+      details.add("No operating margin data available.");
+    }
 
     // 3) Positive Free Cash Flow
     List<BigDecimal> freeCashFlowValues =
@@ -345,48 +351,61 @@ public class AgentPeterLynchTool {
             .map(l -> l.get("free_cash_flow"))
             .toList();
 
-    //    if fcf_values and fcf_values[0] is not None:
-    //        if fcf_values[0] > 0:
-    //            raw_score += 2
-    //            details.append(f"Positive free cash flow: {fcf_values[0]:,.0f}")
-    //        else:
-    //            details.append(f"Recent FCF is negative: {fcf_values[0]:,.0f}")
-    //    else:
-    //        details.append("No free cash flow data available.")
-    //
-    //    # raw_score up to 6 => scale to 0–10
-    //    final_score = min(10, (raw_score / 6) * 10)
-    //    return {"score": final_score, "details": "; ".join(details)}
-    return new Result(rawScore, 0, String.join("; ", details));
+    if (!freeCashFlowValues.isEmpty()) {
+      if (freeCashFlowValues.get(0).compareTo(BigDecimal.ZERO) > 0) {
+        rawScore += 2;
+        details.add("Positive free cash flow: " + freeCashFlowValues.get(0));
+      } else {
+        details.add("Recent FCF is negative: " + freeCashFlowValues.get(0));
+      }
+    } else {
+      details.add("No free cash flow data available.");
+    }
+
+    int finalScore = Math.min(10, (rawScore / 6) * 10);
+    return new Result(finalScore, 0, String.join("; ", details));
   }
 
+  /**
+   * Peter Lynch's approach to 'Growth at a Reasonable Price' (GARP):
+   *
+   * <ul>
+   *   <li>Emphasize the PEG ratio: (P/E) / Growth Rate
+   *   <li>Also consider a basic P/E if PEG is unavailable
+   * </ul>
+   *
+   * A PEG < 1 is very attractive; 1-2 is fair; >2 is expensive.
+   */
   public Result analyzeLynchValuation(List<LineItem> lineItems, BigDecimal marketCap) {
-    // def analyze_lynch_valuation(financial_line_items: list, market_cap: float | None) -> dict:
-    //    """
-    //    Peter Lynch's approach to 'Growth at a Reasonable Price' (GARP):
-    //      - Emphasize the PEG ratio: (P/E) / Growth Rate
-    //      - Also consider a basic P/E if PEG is unavailable
-    //    A PEG < 1 is very attractive; 1-2 is fair; >2 is expensive.
-    //    """
-    //    if not financial_line_items or market_cap is None:
-    //        return {"score": 0, "details": "Insufficient data for valuation"}
-    //
+    if (lineItems.isEmpty() || marketCap == null) {
+      return new Result(0, 0, "Insufficient data for valuation");
+    }
+
     List<String> details = new ArrayList<>();
     int rawScore = 0;
     //
-    //    # Gather data for P/E
-    //    net_incomes = [fi.net_income for fi in financial_line_items if fi.net_income is not
-    // None]
-    //    eps_values = [fi.earnings_per_share for fi in financial_line_items if
-    // fi.earnings_per_share is not None]
+    // Gather data for P/E
+    List<BigDecimal> netIncomes =
+        lineItems.stream()
+            .filter(l -> l.get("net_income") != null)
+            .map(l -> l.get("net_income"))
+            .toList();
+
+    List<BigDecimal> epsValues =
+        lineItems.stream()
+            .filter(l -> l.get("earnings_per_share") != null)
+            .map(l -> l.get("earnings_per_share"))
+            .toList();
+
+    // Approximate P/E via (market cap / net income) if net income is positive
+    if (!netIncomes.isEmpty() && netIncomes.get(0).compareTo(BigDecimal.ZERO) > 0) {
+      BigDecimal peRatio = marketCap.divide(netIncomes.get(0), 2, RoundingMode.HALF_UP);
+      details.add("Estimated P/E: " + peRatio);
+    } else {
+      details.add("No positive net income => can't compute approximate P/E");
+    }
+
     //
-    //    # Approximate P/E via (market cap / net income) if net income is positive
-    //    pe_ratio = None
-    //    if net_incomes and net_incomes[0] and net_incomes[0] > 0:
-    //        pe_ratio = market_cap / net_incomes[0]
-    //        details.append(f"Estimated P/E: {pe_ratio:.2f}")
-    //    else:
-    //        details.append("No positive net income => can't compute approximate P/E")
     //
     //    # If we have at least 2 EPS data points, let's estimate growth
     //    eps_growth_rate = None
@@ -395,11 +414,11 @@ public class AgentPeterLynchTool {
     //        older_eps = eps_values[-1]
     //        if older_eps > 0:
     //            eps_growth_rate = (latest_eps - older_eps) / older_eps
-    //            details.append(f"Approx EPS growth rate: {eps_growth_rate:.1%}")
+    //            details.add("Approx EPS growth rate: {eps_growth_rate:.1%}")
     //        else:
-    //            details.append("Cannot compute EPS growth rate (older EPS <= 0)")
+    //            details.add("Cannot compute EPS growth rate (older EPS <= 0)")
     //    else:
-    //        details.append("Not enough EPS data to compute growth rate")
+    //        details.add("Not enough EPS data to compute growth rate")
     //
     //    # Compute PEG if possible
     //    peg_ratio = None
@@ -410,7 +429,7 @@ public class AgentPeterLynchTool {
     //        # Implementation can vary, but let's do a standard approach: PEG = PE / (Growth *
     // 100).
     //        peg_ratio = pe_ratio / (eps_growth_rate * 100)
-    //        details.append(f"PEG ratio: {peg_ratio:.2f}")
+    //        details.add("PEG ratio: {peg_ratio:.2f}")
     //
     //    # Scoring logic:
     //    #   - P/E < 15 => +2, < 25 => +1
@@ -434,39 +453,38 @@ public class AgentPeterLynchTool {
     return new Result(rawScore, 0, String.join("; ", details));
   }
 
+  /** Basic news sentiment check. Negative headlines weigh on the final score. */
   public Result analyzeSentiment(List<CompanyNews> news) {
-    // def analyze_sentiment(news_items: list) -> dict:
-    //    """
-    //    Basic news sentiment check. Negative headlines weigh on the final score.
-    //    """
-    //    if not news_items:
-    //        return {"score": 5, "details": "No news data; default to neutral sentiment"}
-    //
-    //    negative_keywords = ["lawsuit", "fraud", "negative", "downturn", "decline",
-    // "investigation", "recall"]
-    //    negative_count = 0
-    //    for news in news_items:
-    //        title_lower = (news.title or "").lower()
-    //        if any(word in title_lower for word in negative_keywords):
-    //            negative_count += 1
-    //
+    if (news.isEmpty()) {
+      return new Result(5, 0, "No news data; default to neutral sentiment");
+    }
+
+    List<String> negativeKeywords =
+        List.of("lawsuit", "fraud", "negative", "downturn", "decline", "investigation", "recall");
+
+    int negativeCount =
+        news.stream()
+            .map(n -> n.title() == null ? "" : n.title().toLowerCase())
+            .map(t -> stringContainsItemFromList(t, negativeKeywords) ? 1 : 0)
+            .reduce(0, Integer::sum);
+
     List<String> details = new ArrayList<>();
     int rawScore = 0;
-    //    if negative_count > len(news_items) * 0.3:
-    //        # More than 30% negative => somewhat bearish => 3/10
-    //        score = 3
-    //        details.append(f"High proportion of negative headlines:
-    // {negative_count}/{len(news_items)}")
-    //    elif negative_count > 0:
-    //        # Some negativity => 6/10
-    //        score = 6
-    //        details.append(f"Some negative headlines: {negative_count}/{len(news_items)}")
-    //    else:
-    //        # Mostly positive => 8/10
-    //        score = 8
-    //        details.append("Mostly positive or neutral headlines")
-    //
-    //    return {"score": score, "details": "; ".join(details)}
+
+    // More than 30% negative => somewhat bearish => 3/10
+    if (negativeCount > news.size() * 0.3) {
+      rawScore = 3;
+      details.add("High proportion of negative headlines: " + negativeCount + "/" + news.size());
+    } else if (negativeCount > 0) {
+      // Some negativity => 6/10
+      rawScore = 6;
+      details.add("Some negative headlines: " + negativeCount + "/" + news.size());
+    } else {
+      // Mostly positive => 8/10
+      rawScore = 8;
+      details.add("Mostly positive or neutral headlines");
+    }
+
     return new Result(rawScore, 0, String.join("; ", details));
   }
 
@@ -484,39 +502,47 @@ public class AgentPeterLynchTool {
     // Default 5 (neutral)
     int score = 5;
     List<String> details = new ArrayList<>();
-    //
-    //    if not insider_trades:
-    //        details.append("No insider trades data; defaulting to neutral")
-    //        return {"score": score, "details": "; ".join(details)}
-    //
-    //    buys, sells = 0, 0
-    //    for trade in insider_trades:
-    //        if trade.transaction_shares is not None:
-    //            if trade.transaction_shares > 0:
-    //                buys += 1
-    //            elif trade.transaction_shares < 0:
-    //                sells += 1
-    //
-    //    total = buys + sells
-    //    if total == 0:
-    //        details.append("No significant buy/sell transactions found; neutral stance")
-    //        return {"score": score, "details": "; ".join(details)}
-    //
-    //    buy_ratio = buys / total
-    //    if buy_ratio > 0.7:
-    //        # Heavy buying => +3 => total 8
-    //        score = 8
-    //        details.append(f"Heavy insider buying: {buys} buys vs. {sells} sells")
-    //    elif buy_ratio > 0.4:
-    //        # Some buying => +1 => total 6
-    //        score = 6
-    //        details.append(f"Moderate insider buying: {buys} buys vs. {sells} sells")
-    //    else:
-    //        # Mostly selling => -1 => total 4
-    //        score = 4
-    //        details.append(f"Mostly insider selling: {buys} buys vs. {sells} sells")
-    //
-    //    return {"score": score, "details": "; ".join(details)}
+
+    if (insiderTrades.isEmpty()) {
+      details.add("No insider trades data; defaulting to neutral");
+      return new Result(score, 0, String.join("; ", details));
+    }
+
+    long buys =
+        insiderTrades.stream()
+            .filter(i -> i.transactionShares() != null)
+            .filter(i -> i.transactionShares().compareTo(BigDecimal.ZERO) > 0)
+            .count();
+
+    long sells =
+        insiderTrades.stream()
+            .filter(i -> i.transactionShares() != null)
+            .filter(i -> i.transactionShares().compareTo(BigDecimal.ZERO) < 0)
+            .count();
+
+    long total = buys + sells;
+    if (total == 0) {
+      details.add("No significant buy/sell transactions found; neutral stance");
+      return new Result(score, 0, String.join("; ", details));
+    }
+
+    BigDecimal buyRatio =
+        new BigDecimal(buys).divide(new BigDecimal(total), 2, RoundingMode.HALF_UP);
+
+    if (buyRatio.compareTo(new BigDecimal("0.7")) > 0) {
+      // Heavy buying => +3 => total 8
+      score = 8;
+      details.add("Heavy insider buying: " + buys + " buys vs. " + sells + " sells");
+    } else if (buyRatio.compareTo(new BigDecimal("0.4")) > 0) {
+      // Some buying => +1 => total 6
+      score = 6;
+      details.add("Moderate insider buying: " + buys + " buys vs. " + sells + " sells");
+    } else {
+      // Mostly selling => -1 => total 4
+      score = 4;
+      details.add("Mostly insider selling: " + buys + " buys vs. " + sells + " sells");
+    }
+
     return new Result(score, 0, String.join("; ", details));
   }
 
@@ -642,6 +668,10 @@ public class AgentPeterLynchTool {
 
   private void updateProgress(String ticker, String message) {
     LOGGER.info("{}: {} - {}", AGENT_NAME, ticker, message);
+  }
+
+  public static boolean stringContainsItemFromList(String inputStr, List<String> items) {
+    return items.stream().anyMatch(inputStr::contains);
   }
 
   public record AnalysisResult(
