@@ -3,10 +3,16 @@ package org.garethjevans.ai.agent.michaelburry;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.mcp.client.autoconfigure.McpClientAutoConfiguration;
+import org.springframework.ai.mcp.server.autoconfigure.McpServerAutoConfiguration;
+import org.springframework.ai.model.openai.autoconfigure.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ContextConfiguration;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT,
@@ -14,11 +20,12 @@ import org.springframework.boot.test.context.SpringBootTest;
       "spring.ai.openai.api-key=${OPENAI_KEY}",
       "spring.ai.openai.chat.model=gpt-4o-mini",
       "spring.ai.mcp.client.enabled=true",
-      // "spring.ai.mcp.client.toolcallback.enabled=true",
+      "spring.ai.mcp.client.toolcallback.enabled=true",
       "spring.ai.mcp.client.type=sync",
-      "spring.ai.mcp.client.sse.connections.michaelburry.url=http://localhost:10091/",
-      // "spring.ai.mcp.client.initialized=false",
+      "spring.ai.mcp.client.sse.connections.michaelburry.url=http://localhost:10091/"
     })
+@EnabledIfEnvironmentVariable(named="OPENAI_KEY", matches = ".+")
+@EnableAutoConfiguration(exclude={McpClientAutoConfiguration.class})
 public class AgentTest {
 
   @Autowired private ChatModel model;
