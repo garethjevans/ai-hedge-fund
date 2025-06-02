@@ -100,11 +100,11 @@ public class AgentPeterLynchTool {
       LOGGER.info("Got market cap: {}", marketCap);
 
       updateProgress(t, "Fetching insider trades");
-      var insiderTrades = financialDatasets.getInsiderTrades(ticker, null, endDate, 50);
+      var insiderTrades = financialDatasets.getInsiderTrades(ticker, startDate, endDate, 50);
       LOGGER.info("Got insider trades: {}", insiderTrades);
 
       updateProgress(t, "Fetching company news");
-      var companyNews = financialDatasets.getCompanyNews(ticker, null, endDate, 50);
+      var companyNews = financialDatasets.getCompanyNews(ticker, startDate, endDate, 50);
       LOGGER.info("Got company news: {}", companyNews);
 
       updateProgress(t, "Fetching recent price data for reference");
