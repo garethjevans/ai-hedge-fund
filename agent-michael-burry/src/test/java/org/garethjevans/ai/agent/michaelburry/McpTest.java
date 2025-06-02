@@ -17,12 +17,15 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {"server.shutdown=immediate"})
-@EnableAutoConfiguration(exclude={OpenAiChatAutoConfiguration.class,
-        OpenAiEmbeddingAutoConfiguration.class,
-OpenAiAudioSpeechAutoConfiguration.class,
-OpenAiImageAutoConfiguration.class,
-OpenAiAudioTranscriptionAutoConfiguration.class,
-OpenAiModerationAutoConfiguration.class})
+@EnableAutoConfiguration(
+    exclude = {
+      OpenAiChatAutoConfiguration.class,
+      OpenAiEmbeddingAutoConfiguration.class,
+      OpenAiAudioSpeechAutoConfiguration.class,
+      OpenAiImageAutoConfiguration.class,
+      OpenAiAudioTranscriptionAutoConfiguration.class,
+      OpenAiModerationAutoConfiguration.class
+    })
 class McpTest {
 
   @LocalServerPort private int port;
