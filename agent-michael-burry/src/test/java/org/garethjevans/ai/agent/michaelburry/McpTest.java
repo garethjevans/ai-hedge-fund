@@ -9,12 +9,23 @@ import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.model.openai.autoconfigure.*;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {"server.shutdown=immediate"})
+@EnableAutoConfiguration(
+    exclude = {
+      OpenAiChatAutoConfiguration.class,
+      OpenAiEmbeddingAutoConfiguration.class,
+      OpenAiAudioSpeechAutoConfiguration.class,
+      OpenAiImageAutoConfiguration.class,
+      OpenAiAudioTranscriptionAutoConfiguration.class,
+      OpenAiModerationAutoConfiguration.class
+    })
 class McpTest {
 
   @LocalServerPort private int port;
