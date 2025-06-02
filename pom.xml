@@ -20,6 +20,7 @@
 		<module>agent-warren-buffet</module>
 		<module>agent-michael-burry</module>
 		<module>agent-peter-lynch</module>
+		<module>integration-tests</module>
 	</modules>
 	<properties>
 		<java.version>21</java.version>
