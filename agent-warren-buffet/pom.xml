@@ -13,6 +13,7 @@
     <artifactId>agent-warren-buffet</artifactId>
     <name>Agent :: Warren Buffet</name>
     <version>0.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>

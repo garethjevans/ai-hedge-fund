@@ -319,10 +319,12 @@ public class AgentPeterLynchTool {
     //    else:
     //        details.append("No consistent debt/equity data available.")
     //
-    //    # 2) Operating Margin
-    //    om_values = [fi.operating_margin for fi in financial_line_items if fi.operating_margin
-    // is
-    // not None]
+    // 2) Operating Margin
+    List<BigDecimal> operatingMarginValues =
+        lineItems.stream()
+            .filter(l -> l.get("operating_margin") != null)
+            .map(l -> l.get("operating_margin"))
+            .toList();
     //    if om_values:
     //        om_recent = om_values[0]
     //        if om_recent > 0.20:
@@ -335,11 +337,14 @@ public class AgentPeterLynchTool {
     //            details.append(f"Low operating margin: {om_recent:.1%}")
     //    else:
     //        details.append("No operating margin data available.")
-    //
-    //    # 3) Positive Free Cash Flow
-    //    fcf_values = [fi.free_cash_flow for fi in financial_line_items if fi.free_cash_flow is
-    // not
-    // None]
+
+    // 3) Positive Free Cash Flow
+    List<BigDecimal> freeCashFlowValues =
+        lineItems.stream()
+            .filter(l -> l.get("free_cash_flow") != null)
+            .map(l -> l.get("free_cash_flow"))
+            .toList();
+
     //    if fcf_values and fcf_values[0] is not None:
     //        if fcf_values[0] > 0:
     //            raw_score += 2

@@ -13,6 +13,7 @@
     <artifactId>agent-peter-lynch</artifactId>
     <name>Agent :: Peter Lynch</name>
     <version>0.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
