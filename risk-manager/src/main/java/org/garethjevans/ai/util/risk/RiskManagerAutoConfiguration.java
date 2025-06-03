@@ -10,8 +10,10 @@ import org.springframework.context.annotation.Bean;
 public class RiskManagerAutoConfiguration {
 
   @Bean
-  public Portfolio portfolio(@Value("${portfolio.cash:10000.0}") BigDecimal cash) {
-    return new Portfolio(cash);
+  public Portfolio portfolio(
+      @Value("${portfolio.cash:100000.0}") BigDecimal cash,
+      @Value("${portfolio.margin-requirement:0.0}") BigDecimal marginRequirement) {
+    return new Portfolio(cash, marginRequirement);
   }
 
   @Bean

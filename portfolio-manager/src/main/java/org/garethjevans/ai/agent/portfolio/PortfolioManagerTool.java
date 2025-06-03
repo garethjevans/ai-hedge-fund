@@ -259,9 +259,9 @@ public class PortfolioManagerTool {
                 "portfolio_positions",
                 toJson(portfolio.all()),
                 "margin_requirement",
-                BigDecimal.ZERO,
+                portfolio.marginRequirement().toString(),
                 "total_margin_used",
-                BigDecimal.ZERO));
+                portfolio.marginUsed().toString()));
     LOGGER.info(body);
     return body;
   }

@@ -6,13 +6,25 @@ import java.util.List;
 public class Portfolio {
 
   private final BigDecimal cash;
+  private final BigDecimal marginRequirement;
+  private final BigDecimal marginUsed;
 
-  public Portfolio(BigDecimal cash) {
+  public Portfolio(BigDecimal cash, BigDecimal marginRequirement) {
     this.cash = cash;
+    this.marginRequirement = marginRequirement;
+    this.marginUsed = BigDecimal.ZERO;
   }
 
   public BigDecimal cash() {
     return cash;
+  }
+
+  public BigDecimal marginRequirement() {
+    return marginRequirement;
+  }
+
+  public BigDecimal marginUsed() {
+    return marginUsed;
   }
 
   public Position position(String ticker) {
