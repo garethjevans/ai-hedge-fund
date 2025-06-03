@@ -11,15 +11,7 @@ You'll need to get an API key from https://financialdatasets.ai, with a bit of c
 ```shell
 export FINANCIAL_DATASETS_API_KEY=<your-key>
 
-./mvn -pl agent-warren-buffett spring-boot:run
+./mvnw package -DskipTest
+docker compose up
 ```
 
-This will launch an MCP server on localhost:10900.
-
-To run the tests, which will invoke the MCP server tests:
-
-```shell
-export FINANCIAL_DATASETS_API_KEY=<your-key>
-
-./mvn -pl agent-warren-buffett test
-```
