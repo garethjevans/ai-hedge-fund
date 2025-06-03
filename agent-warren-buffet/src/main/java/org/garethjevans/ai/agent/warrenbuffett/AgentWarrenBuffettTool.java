@@ -565,6 +565,7 @@ public class AgentWarrenBuffettTool {
 
                             Return the trading signal in the following JSON format exactly:
                             {{
+                              "ticker": the company ticker,
                               "signal": "bullish" | "bearish" | "neutral",
                               "confidence": float between 0 and 100,
                               "reasoning": "string"

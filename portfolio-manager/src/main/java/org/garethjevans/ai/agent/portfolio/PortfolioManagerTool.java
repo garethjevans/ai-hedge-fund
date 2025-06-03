@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.garethjevans.ai.common.AgentSignal;
+import org.garethjevans.ai.common.Signal;
+import org.garethjevans.ai.util.risk.Portfolio;
 import org.garethjevans.ai.util.risk.RiskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,10 +38,12 @@ public class PortfolioManagerTool {
   public List<Recommendation> recommendationList(
       @ToolParam(description = "List of agent signals") List<AgentSignal> agentSignals,
       ToolContext toolContext) {
+
     // Get position limits, current prices, and signals for every ticker
     Map<String, BigDecimal> positionLimits = new HashMap<>();
     Map<String, BigDecimal> currentPrices = new HashMap<>();
     Map<String, BigDecimal> maxShares = new HashMap<>();
+    Map<String, PortfolioSignal> signalsByTicker = new HashMap<>();
 
     // signals_by_ticker = {}
     // for ticker in tickers:
@@ -49,28 +53,25 @@ public class PortfolioManagerTool {
 
       // Get position limits and current prices for the ticker
       RiskManager.Analysis riskData = riskManager.analyseRisk(ticker);
-      positionLimits.put(ticker, riskData.remainingPositionLimit());
-      currentPrices.put(ticker, riskData.currentPrice());
+      BigDecimal positionLimit = riskData.remainingPositionLimit();
+      BigDecimal currentPrice = riskData.currentPrice();
+
+      positionLimits.put(ticker, positionLimit);
+      currentPrices.put(ticker, currentPrice);
 
       // Calculate maximum shares allowed based on position limit and price
-      if (currentPrices.get(ticker).compareTo(BigDecimal.ZERO) > 0) {
-        maxShares.put(
-            ticker,
-            positionLimits.get(ticker).divide(currentPrices.get(ticker), 2, RoundingMode.HALF_UP));
+      if (currentPrice.compareTo(BigDecimal.ZERO) > 0) {
+        maxShares.put(ticker, positionLimit.divide(currentPrice, 2, RoundingMode.HALF_UP));
       } else {
         maxShares.put(ticker, BigDecimal.ZERO);
       }
 
       // Get signals for the ticker
-      //        ticker_signals = {}
-      //        for agent, signals in analyst_signals.items():
-      //            if agent != "risk_management_agent" and ticker in signals:
-      //                ticker_signals[agent] = {"signal": signals[ticker]["signal"], "confidence":
-      // signals[ticker]["confidence"]}
-      //        signals_by_ticker[ticker] = ticker_signals
-
+      signalsByTicker.put(
+          ticker, new PortfolioSignal(agentSignal.signal(), agentSignal.confidence()));
       updateProgress(ticker, "Generating trading decisions");
     }
+
     updateProgress(null, "Generating trading decisions");
     return List.of();
   }
@@ -118,7 +119,11 @@ public class PortfolioManagerTool {
     return body;
   }
 
-  public String generateUserMessage(List<AgentSignal> agentSignals) {
+  public String generateUserMessage(
+      Map<String, PortfolioSignal> signalsByTicker,
+      Map<String, BigDecimal> currentPrices,
+      Map<String, BigDecimal> maxShares,
+      Portfolio portfolio) {
     PromptTemplate promptTemplate =
         PromptTemplate.builder()
             .renderer(
@@ -162,36 +167,23 @@ public class PortfolioManagerTool {
                                 """)
             .build();
 
-    // {signals_by_ticker}
-    //
-    //                                Current Prices:
-    //                                {current_prices}
-    //
-    //                                Maximum Shares Allowed For Purchases:
-    //                                {max_shares}
-    //
-    //                                Portfolio Cash: {portfolio_cash}
-    //                                Current Positions: {portfolio_positions}
-    //                                Current Margin Requirement: {margin_requirement}
-    //                                Total Margin Used: {total_margin_used}
-
     String body =
         promptTemplate.render(
             Map.of(
                 "signals_by_ticker",
-                toJson(null),
+                toJson(signalsByTicker),
                 "current_prices",
-                toJson(null),
+                toJson(currentPrices),
                 "max_shares",
-                "",
+                toJson(maxShares),
                 "portfolio_cash",
-                "",
+                portfolio.cash().toString(),
                 "portfolio_positions",
-                "",
+                toJson(portfolio.all()),
                 "margin_requirement",
-                "",
+                BigDecimal.ZERO,
                 "total_margin_used",
-                ""));
+                BigDecimal.ZERO));
     LOGGER.info(body);
     return body;
   }
@@ -221,4 +213,7 @@ public class PortfolioManagerTool {
     COVER,
     HOLD
   }
+
+  public record PortfolioSignal(
+      @JsonProperty("signal") Signal signal, @JsonProperty("confidence") float confidence) {}
 }
