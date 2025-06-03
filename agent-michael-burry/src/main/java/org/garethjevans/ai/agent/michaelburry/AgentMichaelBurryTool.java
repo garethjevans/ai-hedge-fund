@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.garethjevans.ai.common.AgentSignal;
@@ -43,7 +42,7 @@ public class AgentMichaelBurryTool {
   @Tool(
       name = "michael_burry_analysis",
       description = "Performs stock analysis using Michael Burry methods by ticker")
-  public Map<String, AgentSignal> performAnalysisForTicker(
+  public AgentSignal performAnalysisForTicker(
       @ToolParam(description = "Ticker to perform analysis for") String ticker,
       ToolContext toolContext) {
     LOGGER.info("Analyzes stocks using Michael Burry's principles and LLM reasoning.");
@@ -51,120 +50,109 @@ public class AgentMichaelBurryTool {
     LocalDate endDate = LocalDate.now();
     LocalDate startDate = endDate.minusYears(1);
 
-    List<String> tickers = List.of(ticker);
+    updateProgress(ticker, "Fetching financial metrics");
+    List<Metrics> metrics = financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 5);
 
-    Map<String, AgentSignal> burryAnalysis = new HashMap<>();
+    updateProgress(ticker, "Gathering financial line items");
+    List<LineItem> lineItems =
+        financialDatasets.searchLineItems(
+            ticker,
+            endDate,
+            List.of(
+                "free_cash_flow",
+                "net_income",
+                "total_debt",
+                "cash_and_equivalents",
+                "total_assets",
+                "total_liabilities",
+                "outstanding_shares",
+                "issuance_or_purchase_of_equity_shares"),
+            Period.ttm,
+            10);
 
-    for (String t : tickers) {
-      updateProgress(t, "Fetching financial metrics");
-      List<Metrics> metrics = financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 5);
+    updateProgress(ticker, "Getting insider trades");
+    var insiderTrades = financialDatasets.getInsiderTrades(ticker, startDate, endDate, 1000);
+    LOGGER.info("Got insider trades: {}", insiderTrades);
 
-      updateProgress(t, "Gathering financial line items");
-      List<LineItem> lineItems =
-          financialDatasets.searchLineItems(
-              ticker,
-              endDate,
-              List.of(
-                  "free_cash_flow",
-                  "net_income",
-                  "total_debt",
-                  "cash_and_equivalents",
-                  "total_assets",
-                  "total_liabilities",
-                  "outstanding_shares",
-                  "issuance_or_purchase_of_equity_shares"),
-              Period.ttm,
-              10);
+    updateProgress(ticker, "Getting news");
+    var news = financialDatasets.getCompanyNews(ticker, startDate, endDate, 1000);
+    LOGGER.info("Got news: {}", news);
 
-      updateProgress(t, "Getting insider trades");
-      var insiderTrades = financialDatasets.getInsiderTrades(ticker, startDate, endDate, 1000);
-      LOGGER.info("Got insider trades: {}", insiderTrades);
+    updateProgress(ticker, "Getting market cap");
+    var marketCap = financialDatasets.getMarketCap(ticker, endDate);
+    LOGGER.info("Got market cap: {}", marketCap);
 
-      updateProgress(t, "Getting news");
-      var news = financialDatasets.getCompanyNews(ticker, startDate, endDate, 1000);
-      LOGGER.info("Got news: {}", news);
+    //  ------------------------------------------------------------------
+    //  Run sub‑analyses
+    //  ------------------------------------------------------------------
+    updateProgress(ticker, "Analyzing Value");
+    var valueAnalysis = analyzeValue(metrics, lineItems, marketCap);
+    LOGGER.info("Got Value Analysis {}", valueAnalysis);
 
-      updateProgress(t, "Getting market cap");
-      var marketCap = financialDatasets.getMarketCap(ticker, endDate);
-      LOGGER.info("Got market cap: {}", marketCap);
+    updateProgress(ticker, "Analyzing Balance Sheet");
+    var balanceSheetAnalysis = analyzeBalanceSheet(metrics, lineItems);
+    LOGGER.info("Got Balance Sheet Analysis {}", balanceSheetAnalysis);
 
-      //  ------------------------------------------------------------------
-      //  Run sub‑analyses
-      //  ------------------------------------------------------------------
-      updateProgress(t, "Analyzing Value");
-      var valueAnalysis = analyzeValue(metrics, lineItems, marketCap);
-      LOGGER.info("Got Value Analysis {}", valueAnalysis);
+    updateProgress(ticker, "Analyzing Insider activity");
+    var insiderAnalysis = analyseInsiderActivity(insiderTrades);
+    LOGGER.info("Got Insider Activity {}", insiderAnalysis);
 
-      updateProgress(t, "Analyzing Balance Sheet");
-      var balanceSheetAnalysis = analyzeBalanceSheet(metrics, lineItems);
-      LOGGER.info("Got Balance Sheet Analysis {}", balanceSheetAnalysis);
+    updateProgress(ticker, "Analyzing Contrarian Sentiment");
+    var contrarianAnalysis = analyzeContrarianSentiment(news);
+    LOGGER.info("Got Contrarian Sentiment {}", contrarianAnalysis);
 
-      updateProgress(t, "Analyzing Insider activity");
-      var insiderAnalysis = analyseInsiderActivity(insiderTrades);
-      LOGGER.info("Got Insider Activity {}", insiderAnalysis);
+    // ------------------------------------------------------------------
+    // Aggregate score & derive preliminary signal
+    // ------------------------------------------------------------------
+    int totalScore =
+        valueAnalysis.score()
+            + balanceSheetAnalysis.score()
+            + insiderAnalysis.score()
+            + contrarianAnalysis.score();
 
-      updateProgress(t, "Analyzing Contrarian Sentiment");
-      var contrarianAnalysis = analyzeContrarianSentiment(news);
-      LOGGER.info("Got Contrarian Sentiment {}", contrarianAnalysis);
+    int maxScore =
+        valueAnalysis.maxScore()
+            + balanceSheetAnalysis.maxScore()
+            + insiderAnalysis.maxScore()
+            + contrarianAnalysis.maxScore();
 
-      // ------------------------------------------------------------------
-      // Aggregate score & derive preliminary signal
-      // ------------------------------------------------------------------
-      int totalScore =
-          valueAnalysis.score()
-              + balanceSheetAnalysis.score()
-              + insiderAnalysis.score()
-              + contrarianAnalysis.score();
+    Signal signal = null;
 
-      int maxScore =
-          valueAnalysis.maxScore()
-              + balanceSheetAnalysis.maxScore()
-              + insiderAnalysis.maxScore()
-              + contrarianAnalysis.maxScore();
-
-      Signal signal = null;
-
-      if (new BigDecimal(totalScore)
-              .compareTo(new BigDecimal(maxScore).multiply(new BigDecimal("0.7")))
-          >= 0) {
-        signal = Signal.bullish;
-      } else if (new BigDecimal(totalScore)
-              .compareTo(new BigDecimal(maxScore).multiply(new BigDecimal("0.3")))
-          <= 0) {
-        signal = Signal.bearish;
-      } else {
-        signal = Signal.neutral;
-      }
-
-      // ------------------------------------------------------------------
-      // Collect data for LLM reasoning & output
-      // ------------------------------------------------------------------
-      AnalysisResult analysisResult =
-          new AnalysisResult(
-              signal,
-              totalScore,
-              maxScore,
-              valueAnalysis,
-              balanceSheetAnalysis,
-              insiderAnalysis,
-              contrarianAnalysis,
-              marketCap);
-
-      LOGGER.info("Got a score of {} out of a total {}", totalScore, maxScore);
-
-      updateProgress(t, "Generating Michael Burry analysis");
-
-      AgentSignal output = generateOutput(t, analysisResult, toolContext);
-
-      // Store analysis in consistent format with other agents
-      burryAnalysis.put(ticker, output);
-
-      updateProgress(t, "Done");
-
-      updateProgress(null, "Done");
+    if (new BigDecimal(totalScore)
+            .compareTo(new BigDecimal(maxScore).multiply(new BigDecimal("0.7")))
+        >= 0) {
+      signal = Signal.bullish;
+    } else if (new BigDecimal(totalScore)
+            .compareTo(new BigDecimal(maxScore).multiply(new BigDecimal("0.3")))
+        <= 0) {
+      signal = Signal.bearish;
+    } else {
+      signal = Signal.neutral;
     }
 
-    return burryAnalysis;
+    // ------------------------------------------------------------------
+    // Collect data for LLM reasoning & output
+    // ------------------------------------------------------------------
+    AnalysisResult analysisResult =
+        new AnalysisResult(
+            signal,
+            totalScore,
+            maxScore,
+            valueAnalysis,
+            balanceSheetAnalysis,
+            insiderAnalysis,
+            contrarianAnalysis,
+            marketCap);
+
+    LOGGER.info("Got a score of {} out of a total {}", totalScore, maxScore);
+
+    updateProgress(ticker, "Generating Michael Burry analysis");
+
+    AgentSignal output = generateOutput(ticker, analysisResult, toolContext);
+
+    updateProgress(ticker, "Done");
+
+    return output;
   }
 
   /** Free cash‑flow yield, EV/EBIT, other classic deep‑value metrics. */
@@ -390,7 +378,8 @@ public class AgentMichaelBurryTool {
       return objectMapper.readValue(withoutMarkdown, AgentSignal.class);
     } catch (JsonProcessingException e) {
       LOGGER.warn("Error in analysis, defaulting to neutral", e);
-      return new AgentSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
+      return new AgentSignal(
+          ticker, Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
     }
   }
 
@@ -439,6 +428,7 @@ public class AgentMichaelBurryTool {
 
                                             Return the trading signal in the following JSON format exactly:
                                             {{
+                                              "ticker": the company ticker,
                                               "signal": "bullish" | "bearish" | "neutral",
                                               "confidence": float between 0 and 100,
                                               "reasoning": "string"

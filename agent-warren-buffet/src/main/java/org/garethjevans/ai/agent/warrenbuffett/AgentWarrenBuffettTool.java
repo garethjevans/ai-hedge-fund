@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -46,131 +45,121 @@ public class AgentWarrenBuffettTool {
   @Tool(
       name = "warren_buffett_analysis",
       description = "Performs stock analysis using Warren Buffett's methods by ticker")
-  public Map<String, AgentSignal> performAnalysisForTicker(
+  public AgentSignal performAnalysisForTicker(
       @ToolParam(description = "Ticker to perform analysis for") String ticker,
       ToolContext toolContext) {
     LOGGER.info("Analyzes stocks using Buffett's principles and LLM reasoning.");
 
     //    data = state["data"]
     LocalDate endDate = LocalDate.now();
-    List<String> tickers = List.of(ticker);
 
-    Map<String, AgentSignal> buffettAnalysis = new HashMap<>();
+    updateProgress(ticker, "Fetching financial metrics");
+    List<Metrics> metrics = financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 5);
 
-    for (String t : tickers) {
-      updateProgress(t, "Fetching financial metrics");
-      List<Metrics> metrics = financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 5);
+    updateProgress(ticker, "Gathering financial line items");
+    List<LineItem> financialLineItems =
+        financialDatasets.searchLineItems(
+            ticker,
+            endDate,
+            List.of(
+                "capital_expenditure",
+                "depreciation_and_amortization",
+                "net_income",
+                "outstanding_shares",
+                "total_assets",
+                "total_liabilities",
+                "dividends_and_other_cash_distributions",
+                "issuance_or_purchase_of_equity_shares"),
+            Period.ttm,
+            10);
 
-      updateProgress(t, "Gathering financial line items");
-      List<LineItem> financialLineItems =
-          financialDatasets.searchLineItems(
-              ticker,
-              endDate,
-              List.of(
-                  "capital_expenditure",
-                  "depreciation_and_amortization",
-                  "net_income",
-                  "outstanding_shares",
-                  "total_assets",
-                  "total_liabilities",
-                  "dividends_and_other_cash_distributions",
-                  "issuance_or_purchase_of_equity_shares"),
-              Period.ttm,
-              10);
+    updateProgress(ticker, "Getting market cap");
+    var marketCap = financialDatasets.getMarketCap(ticker, endDate);
+    LOGGER.info("Got market cap: {}", marketCap);
 
-      updateProgress(t, "Getting market cap");
-      var marketCap = financialDatasets.getMarketCap(ticker, endDate);
-      LOGGER.info("Got market cap: {}", marketCap);
+    updateProgress(ticker, "Analyzing fundamentals");
+    var fundamentalAnalysis = analyzeFundamentals(metrics);
+    LOGGER.info("Got fundamental analysis: {}", fundamentalAnalysis);
 
-      updateProgress(t, "Analyzing fundamentals");
-      var fundamentalAnalysis = analyzeFundamentals(metrics);
-      LOGGER.info("Got fundamental analysis: {}", fundamentalAnalysis);
+    updateProgress(ticker, "Analyzing consistency");
+    var consistencyAnalysis = analyzeConsistency(financialLineItems);
+    LOGGER.info("Got consistency analysis: {}", consistencyAnalysis);
 
-      updateProgress(t, "Analyzing consistency");
-      var consistencyAnalysis = analyzeConsistency(financialLineItems);
-      LOGGER.info("Got consistency analysis: {}", consistencyAnalysis);
+    updateProgress(ticker, "Analyzing moat");
+    var moatAnalysis = analyzeMoat(metrics);
+    LOGGER.info("Got moat analysis: {}", moatAnalysis);
 
-      updateProgress(t, "Analyzing moat");
-      var moatAnalysis = analyzeMoat(metrics);
-      LOGGER.info("Got moat analysis: {}", moatAnalysis);
+    updateProgress(ticker, "Analyzing management quality");
+    var mgmtAnalysis = analyzeManagementQuality(financialLineItems);
+    LOGGER.info("Got management quality analysis: {}", mgmtAnalysis);
 
-      updateProgress(t, "Analyzing management quality");
-      var mgmtAnalysis = analyzeManagementQuality(financialLineItems);
-      LOGGER.info("Got management quality analysis: {}", mgmtAnalysis);
+    updateProgress(ticker, "Calculating intrinsic value");
+    IntrinsicValueAnalysisResult intrinsicValueAnalysis =
+        calculateIntrinsicValue(financialLineItems);
+    LOGGER.info("Got intrinsic value analysis: {}", intrinsicValueAnalysis);
 
-      updateProgress(t, "Calculating intrinsic value");
-      IntrinsicValueAnalysisResult intrinsicValueAnalysis =
-          calculateIntrinsicValue(financialLineItems);
-      LOGGER.info("Got intrinsic value analysis: {}", intrinsicValueAnalysis);
+    // Calculate total score
+    int totalScore =
+        fundamentalAnalysis.score()
+            + consistencyAnalysis.score()
+            + moatAnalysis.score()
+            + mgmtAnalysis.score();
 
-      // Calculate total score
-      int totalScore =
-          fundamentalAnalysis.score()
-              + consistencyAnalysis.score()
-              + moatAnalysis.score()
-              + mgmtAnalysis.score();
+    int maxPossibleScore =
+        consistencyAnalysis.maxScore() + moatAnalysis.maxScore() + mgmtAnalysis.maxScore();
 
-      int maxPossibleScore =
-          consistencyAnalysis.maxScore() + moatAnalysis.maxScore() + mgmtAnalysis.maxScore();
+    LOGGER.info("Got a score of {} out of a total {}", totalScore, maxPossibleScore);
 
-      LOGGER.info("Got a score of {} out of a total {}", totalScore, maxPossibleScore);
+    // Add margin of safety analysis if we have both intrinsic value and current price
+    BigDecimal marginOfSafety = null;
+    BigDecimal intrinsicValue = intrinsicValueAnalysis.intrinsicValue();
+    LOGGER.info("Got intrinsic value: {}", intrinsicValue);
 
-      // Add margin of safety analysis if we have both intrinsic value and current price
-      BigDecimal marginOfSafety = null;
-      BigDecimal intrinsicValue = intrinsicValueAnalysis.intrinsicValue();
-      LOGGER.info("Got intrinsic value: {}", intrinsicValue);
-
-      if (intrinsicValue != null && marketCap != null) {
-        marginOfSafety =
-            intrinsicValue.add(marketCap.negate()).divide(marketCap, 2, RoundingMode.HALF_UP);
-      }
-
-      LOGGER.info("Got margin of safety: {}", marginOfSafety);
-
-      Signal signal = null;
-      if ((new BigDecimal(totalScore)
-                  .compareTo(new BigDecimal("0.7").multiply(new BigDecimal(maxPossibleScore)))
-              >= 0)
-          && (marginOfSafety != null)
-          && (marginOfSafety.compareTo(new BigDecimal("0.3")) >= 0)) {
-        signal = Signal.bullish;
-      } else if ((new BigDecimal(totalScore)
-                  .compareTo(new BigDecimal("0.3").multiply(new BigDecimal(maxPossibleScore)))
-              <= 0)
-          || (marginOfSafety != null && marginOfSafety.compareTo(new BigDecimal("-0.3")) < 0)) {
-        signal = Signal.bearish;
-      } else {
-        signal = Signal.neutral;
-      }
-
-      LOGGER.info("Estimating signal as {}", signal);
-
-      AnalysisResult analysisResult =
-          new AnalysisResult(
-              signal,
-              totalScore,
-              maxPossibleScore,
-              fundamentalAnalysis,
-              consistencyAnalysis,
-              moatAnalysis,
-              mgmtAnalysis,
-              intrinsicValueAnalysis,
-              marketCap,
-              marginOfSafety);
-
-      updateProgress(t, "Generating Warren Buffett analysis");
-
-      AgentSignal buffettOutput = generateBuffettOutput(t, analysisResult, toolContext);
-
-      // Store analysis in consistent format with other agents
-      buffettAnalysis.put(ticker, buffettOutput);
-
-      updateProgress(t, "Done");
-
-      updateProgress(null, "Done");
+    if (intrinsicValue != null && marketCap != null) {
+      marginOfSafety =
+          intrinsicValue.add(marketCap.negate()).divide(marketCap, 2, RoundingMode.HALF_UP);
     }
 
-    return buffettAnalysis;
+    LOGGER.info("Got margin of safety: {}", marginOfSafety);
+
+    Signal signal = null;
+    if ((new BigDecimal(totalScore)
+                .compareTo(new BigDecimal("0.7").multiply(new BigDecimal(maxPossibleScore)))
+            >= 0)
+        && (marginOfSafety != null)
+        && (marginOfSafety.compareTo(new BigDecimal("0.3")) >= 0)) {
+      signal = Signal.bullish;
+    } else if ((new BigDecimal(totalScore)
+                .compareTo(new BigDecimal("0.3").multiply(new BigDecimal(maxPossibleScore)))
+            <= 0)
+        || (marginOfSafety != null && marginOfSafety.compareTo(new BigDecimal("-0.3")) < 0)) {
+      signal = Signal.bearish;
+    } else {
+      signal = Signal.neutral;
+    }
+
+    LOGGER.info("Estimating signal as {}", signal);
+
+    AnalysisResult analysisResult =
+        new AnalysisResult(
+            signal,
+            totalScore,
+            maxPossibleScore,
+            fundamentalAnalysis,
+            consistencyAnalysis,
+            moatAnalysis,
+            mgmtAnalysis,
+            intrinsicValueAnalysis,
+            marketCap,
+            marginOfSafety);
+
+    updateProgress(ticker, "Generating Warren Buffett analysis");
+
+    AgentSignal output = generateBuffettOutput(ticker, analysisResult, toolContext);
+
+    updateProgress(ticker, "Done");
+
+    return output;
   }
 
   /**
@@ -347,9 +336,6 @@ public class AgentWarrenBuffettTool {
    * approach: - if there's net share repurchase or stable share count, it suggests management might
    * be shareholder-friendly. - if there's a big new issuance, it might be a negative sign
    * (dilution).
-   *
-   * @param lineItems
-   * @return
    */
   public Result analyzeManagementQuality(List<LineItem> lineItems) {
     if (lineItems == null || lineItems.isEmpty()) {
@@ -388,9 +374,6 @@ public class AgentWarrenBuffettTool {
   /**
    * Calculate owner earnings (Buffett's preferred measure of true earnings power). Owner Earnings =
    * Net Income + Depreciation - Maintenance CapEx
-   *
-   * @param lineItems
-   * @return
    */
   public OwnerEarningsResult calculateOwnerEarnings(List<LineItem> lineItems) {
     if (lineItems == null || lineItems.isEmpty()) {
@@ -422,12 +405,7 @@ public class AgentWarrenBuffettTool {
         "Owner earnings calculated successfully");
   }
 
-  /**
-   * Calculate intrinsic value using DCF with owner earnings.
-   *
-   * @param lineItems
-   * @return
-   */
+  /** Calculate intrinsic value using DCF with owner earnings. */
   public IntrinsicValueAnalysisResult calculateIntrinsicValue(List<LineItem> lineItems) {
     if (lineItems == null || lineItems.isEmpty()) {
       return new IntrinsicValueAnalysisResult(null, null, null, "Insufficient data for valuation");
@@ -533,7 +511,8 @@ public class AgentWarrenBuffettTool {
       return objectMapper.readValue(withoutMarkdown, AgentSignal.class);
     } catch (JsonProcessingException e) {
       LOGGER.warn("Error in analysis, defaulting to neutral", e);
-      return new AgentSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
+      return new AgentSignal(
+          ticker, Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
     }
   }
 
@@ -586,6 +565,7 @@ public class AgentWarrenBuffettTool {
 
                             Return the trading signal in the following JSON format exactly:
                             {{
+                              "ticker": the company ticker,
                               "signal": "bullish" | "bearish" | "neutral",
                               "confidence": float between 0 and 100,
                               "reasoning": "string"
