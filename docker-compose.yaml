@@ -1,0 +1,75 @@
+services:
+  agent-warren-buffett:
+    image: 'agent-warren-buffett:latest'
+    build:
+      context: ./agent-warren-buffett
+      dockerfile: ./Dockerfile
+    develop:
+      watch:
+        - action: rebuild
+          path: ./target/agent-warren-buffett-0.0.1-SNAPSHOT.jar
+    container_name: agent-warren-buffett
+    volumes:
+      - cache-data:/cache
+    environment:
+      - FINANCIAL_DATASETS_API_KEY=$FINANCIAL_DATASETS_API_KEY
+      - FINANCIAL_DATASETS_CACHE_DIR=/cache
+    ports:
+      - "10090:10090"
+
+  agent-michael-burry:
+    image: 'agent-michael-burry:latest'
+    build:
+      context: ./agent-michael-burry
+      dockerfile: ./Dockerfile
+    develop:
+      watch:
+        - action: rebuild
+          path: ./target/agent-michael-burry-0.0.1-SNAPSHOT.jar
+    container_name: agent-michael-burry
+    volumes:
+      - cache-data:/cache
+    environment:
+      - FINANCIAL_DATASETS_API_KEY=$FINANCIAL_DATASETS_API_KEY
+      - FINANCIAL_DATASETS_CACHE_DIR=/cache
+    ports:
+      - "10091:10091"
+
+  agent-peter-lynch:
+    image: 'agent-peter-lynch:latest'
+    build:
+      context: ./agent-peter-lynch
+      dockerfile: ./Dockerfile
+    develop:
+      watch:
+        - action: rebuild
+          path: ./target/agent-peter-lynch-0.0.1-SNAPSHOT.jar
+    container_name: agent-peter-lynch
+    volumes:
+      - cache-data:/cache
+    environment:
+      - FINANCIAL_DATASETS_API_KEY=$FINANCIAL_DATASETS_API_KEY
+      - FINANCIAL_DATASETS_CACHE_DIR=/cache
+    ports:
+      - "10092:10092"
+
+  portfolio-manager:
+    image: 'portfolio-manager:latest'
+    build:
+      context: ./portfolio-manager
+      dockerfile: ./Dockerfile
+    develop:
+      watch:
+        - action: rebuild
+          path: ./target/portfolio-manager-0.0.1-SNAPSHOT.jar
+    container_name: portfolio-manager
+    volumes:
+      - cache-data:/cache
+    environment:
+      - FINANCIAL_DATASETS_API_KEY=$FINANCIAL_DATASETS_API_KEY
+      - FINANCIAL_DATASETS_CACHE_DIR=/cache
+    ports:
+      - "10093:10093"
+
+volumes:
+  cache-data:
