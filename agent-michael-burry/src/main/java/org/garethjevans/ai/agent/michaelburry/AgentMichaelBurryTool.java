@@ -171,15 +171,15 @@ public class AgentMichaelBurryTool {
       BigDecimal fcfYield = fcf.divide(marketCap, 2, RoundingMode.HALF_UP);
       if (fcfYield.compareTo(new BigDecimal("0.15")) >= 0) {
         score += 4;
-        details.add("Extraordinary FCF yield {fcf_yield:.1%}");
+        details.add("Extraordinary FCF yield " + fcfYield);
       } else if (fcfYield.compareTo(new BigDecimal("0.12")) >= 0) {
         score += 3;
-        details.add("Very high FCF yield {fcf_yield:.1%}");
+        details.add("Very high FCF yield " + fcfYield);
       } else if (fcfYield.compareTo(new BigDecimal("0.08")) >= 0) {
         score += 2;
-        details.add("Respectable FCF yield {fcf_yield:.1%}");
+        details.add("Respectable FCF yield " + fcfYield);
       } else {
-        details.add("Low FCF yield {fcf_yield:.1%}");
+        details.add("Low FCF yield " + fcfYield);
       }
     } else {
       details.add("FCF data unavailable");
@@ -191,12 +191,12 @@ public class AgentMichaelBurryTool {
       if (evEbit != null) {
         if (evEbit.compareTo(new BigDecimal(6)) < 0) {
           score += 2;
-          details.add("EV/EBIT {ev_ebit:.1f} (<6)");
+          details.add("EV/EBIT " + evEbit + "(<6)");
         } else if (evEbit.compareTo(new BigDecimal(10)) < 0) {
           score += 1;
-          details.add("EV/EBIT {ev_ebit:.1f} (<10)");
+          details.add("EV/EBIT " + evEbit + " (<10)");
         } else {
-          details.add("High EV/EBIT {ev_ebit:.1f}");
+          details.add("High EV/EBIT " + evEbit);
         }
       } else {
         details.add("EV/EBIT data unavailable");
@@ -262,16 +262,12 @@ public class AgentMichaelBurryTool {
       return new Result(score, maxScore, String.join("; ", details));
     }
 
-    // shares_bought = sum(t.transaction_shares or 0 for t in insider_trades if
-    // (t.transaction_shares or 0) > 0)
     BigDecimal sharesBought =
         insiderTrades.stream()
             .map(t -> t.transactionShares() != null ? t.transactionShares() : BigDecimal.ZERO)
             .filter(shares -> shares.compareTo(BigDecimal.ZERO) > 0)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    // shares_sold = abs(sum(t.transaction_shares or 0 for t in insider_trades if
-    // (t.transaction_shares or 0) < 0))
     BigDecimal sharesSold =
         insiderTrades.stream()
             .map(t -> t.transactionShares() != null ? t.transactionShares() : BigDecimal.ZERO)
