@@ -117,7 +117,7 @@ public class AgentWarrenBuffettTool {
 
     if (intrinsicValue != null && marketCap != null) {
       marginOfSafety =
-          intrinsicValue.add(marketCap.negate()).divide(marketCap, 2, RoundingMode.HALF_UP);
+          intrinsicValue.subtract(marketCap).divide(marketCap, 2, RoundingMode.HALF_UP);
     }
 
     LOGGER.info("Got margin of safety: {}", marginOfSafety);
@@ -260,7 +260,7 @@ public class AgentWarrenBuffettTool {
       BigDecimal growthRate =
           earningsValues
               .getFirst()
-              .add(earningsValues.getLast().negate())
+              .subtract(earningsValues.getLast())
               .divide(earningsValues.getLast().abs(), 2, RoundingMode.HALF_UP);
       reasoning.add(
           "Total earnings growth of "
@@ -397,7 +397,7 @@ public class AgentWarrenBuffettTool {
 
     // Estimate maintenance capex (typically 70-80% of total capex)
     BigDecimal maintenanceCapex = capex.multiply(new BigDecimal("0.75"));
-    BigDecimal ownerEarnings = netIncome.add(depreciation).add(maintenanceCapex.negate());
+    BigDecimal ownerEarnings = netIncome.add(depreciation).subtract(maintenanceCapex);
 
     return new OwnerEarningsResult(
         ownerEarnings,

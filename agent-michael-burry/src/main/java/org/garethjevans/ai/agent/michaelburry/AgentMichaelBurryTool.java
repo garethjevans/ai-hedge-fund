@@ -280,7 +280,7 @@ public class AgentMichaelBurryTool {
             .abs();
 
     // net = shares_bought - shares_sold
-    BigDecimal net = sharesBought.add(sharesSold.negate());
+    BigDecimal net = sharesBought.subtract(sharesSold);
 
     if (net.compareTo(BigDecimal.ZERO) > 0) {
       score +=
