@@ -420,7 +420,7 @@ public class AgentMichaelBurryTool {
                     .endDelimiterToken('>')
                     .build())
             .template(
-                                          """
+                """
                                             Based on the following data, create the investment signal as Michael Burry would:
 
                                             Analysis Data for <ticker>:

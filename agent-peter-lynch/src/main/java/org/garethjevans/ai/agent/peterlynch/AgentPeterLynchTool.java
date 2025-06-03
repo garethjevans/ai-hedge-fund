@@ -62,9 +62,9 @@ public class AgentPeterLynchTool {
     LocalDate endDate = LocalDate.now();
     LocalDate startDate = endDate.minusMonths(3);
 
-//    updateProgress(ticker, "Fetching financial metrics");
-//    List<Metrics> metrics =
-//        financialDatasets.getFinancialMetrics(ticker, endDate, Period.annual, 5);
+    //    updateProgress(ticker, "Fetching financial metrics");
+    //    List<Metrics> metrics =
+    //        financialDatasets.getFinancialMetrics(ticker, endDate, Period.annual, 5);
 
     updateProgress(ticker, "Gathering financial line items");
     List<LineItem> financialLineItems =
@@ -627,7 +627,7 @@ public class AgentPeterLynchTool {
                     .endDelimiterToken('>')
                     .build())
             .template(
-                                            """
+                """
                                             Based on the following analysis data for <ticker>, produce your Peter Lynch–style investment signal.
 
                                             Analysis Data for <ticker>:

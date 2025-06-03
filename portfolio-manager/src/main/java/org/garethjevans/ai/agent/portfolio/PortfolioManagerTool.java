@@ -3,15 +3,13 @@ package org.garethjevans.ai.agent.portfolio;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.modelcontextprotocol.spec.McpSchema;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import io.modelcontextprotocol.spec.McpSchema;
 import org.garethjevans.ai.common.AgentSignal;
-import org.garethjevans.ai.common.Result;
 import org.garethjevans.ai.common.Signal;
 import org.garethjevans.ai.util.risk.Portfolio;
 import org.garethjevans.ai.util.risk.RiskManager;
@@ -32,7 +30,8 @@ public class PortfolioManagerTool {
   private final ObjectMapper objectMapper;
   private final Portfolio portfolio;
 
-  public PortfolioManagerTool(RiskManager riskManager, ObjectMapper objectMapper, Portfolio portfolio) {
+  public PortfolioManagerTool(
+      RiskManager riskManager, ObjectMapper objectMapper, Portfolio portfolio) {
     this.riskManager = riskManager;
     this.objectMapper = objectMapper;
     this.portfolio = portfolio;
@@ -81,7 +80,8 @@ public class PortfolioManagerTool {
 
     updateProgress(null, "Generating trading decisions");
 
-    TradingRecommendations recommendations = generateOutput(signalsByTicker, currentPrices, maxShares, portfolio, toolContext);
+    TradingRecommendations recommendations =
+        generateOutput(signalsByTicker, currentPrices, maxShares, portfolio, toolContext);
 
     updateProgress(null, "Done");
 
@@ -89,51 +89,55 @@ public class PortfolioManagerTool {
   }
 
   private TradingRecommendations generateOutput(
-          Map<String, PortfolioSignal> signalsByTicker,
-          Map<String, BigDecimal> currentPrices,
-          Map<String, BigDecimal> maxShares,
-          Portfolio portfolio,
-           ToolContext toolContext) {
+      Map<String, PortfolioSignal> signalsByTicker,
+      Map<String, BigDecimal> currentPrices,
+      Map<String, BigDecimal> maxShares,
+      Portfolio portfolio,
+      ToolContext toolContext) {
     StringBuilder buffettOutput = new StringBuilder();
 
     // LOGGER.info("toolContext: {}", toolContext.getContext());
     McpToolUtils.getMcpExchange(toolContext)
-            .ifPresent(
-                    exchange -> {
-                      exchange.loggingNotification(
-                              McpSchema.LoggingMessageNotification.builder()
-                                      .level(McpSchema.LoggingLevel.INFO)
-                                      .data("Start sampling")
-                                      .build());
+        .ifPresent(
+            exchange -> {
+              exchange.loggingNotification(
+                  McpSchema.LoggingMessageNotification.builder()
+                      .level(McpSchema.LoggingLevel.INFO)
+                      .data("Start sampling")
+                      .build());
 
-                      if (exchange.getClientCapabilities().sampling() != null) {
-                        var messageRequestBuilder =
-                                McpSchema.CreateMessageRequest.builder()
-                                        .systemPrompt(generateSystemMessage())
-                                        .messages(
-                                                List.of(
-                                                        new McpSchema.SamplingMessage(
-                                                                McpSchema.Role.USER,
-                                                                new McpSchema.TextContent(
-                                                                        generateUserMessage(signalsByTicker, currentPrices, maxShares, portfolio)))));
+              if (exchange.getClientCapabilities().sampling() != null) {
+                var messageRequestBuilder =
+                    McpSchema.CreateMessageRequest.builder()
+                        .systemPrompt(generateSystemMessage())
+                        .messages(
+                            List.of(
+                                new McpSchema.SamplingMessage(
+                                    McpSchema.Role.USER,
+                                    new McpSchema.TextContent(
+                                        generateUserMessage(
+                                            signalsByTicker,
+                                            currentPrices,
+                                            maxShares,
+                                            portfolio)))));
 
-                        var llmMessageRequest =
-                                messageRequestBuilder
-                                        .modelPreferences(
-                                                McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
-                                        .build();
-                        McpSchema.CreateMessageResult llmResponse =
-                                exchange.createMessage(llmMessageRequest);
+                var llmMessageRequest =
+                    messageRequestBuilder
+                        .modelPreferences(
+                            McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
+                        .build();
+                McpSchema.CreateMessageResult llmResponse =
+                    exchange.createMessage(llmMessageRequest);
 
-                        buffettOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
-                      }
+                buffettOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
+              }
 
-                      exchange.loggingNotification(
-                              McpSchema.LoggingMessageNotification.builder()
-                                      .level(McpSchema.LoggingLevel.INFO)
-                                      .data("Finish Sampling")
-                                      .build());
-                    });
+              exchange.loggingNotification(
+                  McpSchema.LoggingMessageNotification.builder()
+                      .level(McpSchema.LoggingLevel.INFO)
+                      .data("Finish Sampling")
+                      .build());
+            });
 
     String withoutMarkdown = removeMarkdown(buffettOutput.toString());
     LOGGER.info("Got sampling response '{}'", withoutMarkdown);
@@ -145,7 +149,6 @@ public class PortfolioManagerTool {
       return new TradingRecommendations(Map.of());
     }
   }
-
 
   private String removeMarkdown(String in) {
     return in.replace("```json", "").replace("```", "").trim();
@@ -287,11 +290,11 @@ public class PortfolioManagerTool {
       @JsonProperty("signal") Signal signal, @JsonProperty("confidence") float confidence) {}
 
   public record Recommendation(
-          @JsonProperty("ticker") String ticker,
-          @JsonProperty("action") Action action,
-          @JsonProperty("confidence") float confidence,
-          @JsonProperty("reasoning") String reasoning) {}
+      @JsonProperty("ticker") String ticker,
+      @JsonProperty("action") Action action,
+      @JsonProperty("confidence") float confidence,
+      @JsonProperty("reasoning") String reasoning) {}
 
   public record TradingRecommendations(
-          @JsonProperty("decisions") Map<String, Recommendation> decisions) {}
+      @JsonProperty("decisions") Map<String, Recommendation> decisions) {}
 }

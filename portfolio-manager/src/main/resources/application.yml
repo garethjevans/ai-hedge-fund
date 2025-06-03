@@ -15,7 +15,7 @@ spring:
         capabilities:
           tool: true
           resource: false
-          prompt: false
+          prompt: true
           completion: false
 
 financial:
