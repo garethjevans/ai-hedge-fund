@@ -54,7 +54,7 @@ public class AgentPeterLynchTool {
   @Tool(
       name = "peter_lynch_analysis",
       description = "Performs stock analysis using PeterLynch's methods by ticker")
-  public Map<String, AgentSignal> performAnalysisForTicker(
+  public AgentSignal performAnalysisForTicker(
       @ToolParam(description = "Ticker to perform analysis for") String ticker,
       ToolContext toolContext) {
     LOGGER.info("Analyzes stocks using Peter Lynch's principles and LLM reasoning.");
@@ -62,118 +62,107 @@ public class AgentPeterLynchTool {
     LocalDate endDate = LocalDate.now();
     LocalDate startDate = endDate.minusMonths(3);
 
-    List<String> tickers = List.of(ticker);
+    updateProgress(ticker, "Fetching financial metrics");
+    List<Metrics> metrics =
+        financialDatasets.getFinancialMetrics(ticker, endDate, Period.annual, 5);
 
-    Map<String, AgentSignal> analysis = new HashMap<>();
+    updateProgress(ticker, "Gathering financial line items");
+    List<LineItem> financialLineItems =
+        financialDatasets.searchLineItems(
+            ticker,
+            endDate,
+            List.of(
+                "revenue",
+                "earnings_per_share",
+                "net_income",
+                "operating_income",
+                "gross_margin",
+                "operating_margin",
+                "free_cash_flow",
+                "capital_expenditure",
+                "cash_and_equivalents",
+                "total_debt",
+                "shareholders_equity",
+                "outstanding_shares"),
+            Period.annual,
+            5);
 
-    for (String t : tickers) {
-      updateProgress(t, "Fetching financial metrics");
-      List<Metrics> metrics =
-          financialDatasets.getFinancialMetrics(ticker, endDate, Period.annual, 5);
+    updateProgress(ticker, "Getting market cap");
+    var marketCap = financialDatasets.getMarketCap(ticker, endDate);
+    LOGGER.info("Got market cap: {}", marketCap);
 
-      updateProgress(t, "Gathering financial line items");
-      List<LineItem> financialLineItems =
-          financialDatasets.searchLineItems(
-              ticker,
-              endDate,
-              List.of(
-                  "revenue",
-                  "earnings_per_share",
-                  "net_income",
-                  "operating_income",
-                  "gross_margin",
-                  "operating_margin",
-                  "free_cash_flow",
-                  "capital_expenditure",
-                  "cash_and_equivalents",
-                  "total_debt",
-                  "shareholders_equity",
-                  "outstanding_shares"),
-              Period.annual,
-              5);
+    updateProgress(ticker, "Fetching insider trades");
+    var insiderTrades = financialDatasets.getInsiderTrades(ticker, startDate, endDate, 50);
+    LOGGER.info("Got insider trades: {}", insiderTrades);
 
-      updateProgress(t, "Getting market cap");
-      var marketCap = financialDatasets.getMarketCap(ticker, endDate);
-      LOGGER.info("Got market cap: {}", marketCap);
+    updateProgress(ticker, "Fetching company news");
+    var companyNews = financialDatasets.getCompanyNews(ticker, startDate, endDate, 50);
+    LOGGER.info("Got company news: {}", companyNews);
 
-      updateProgress(t, "Fetching insider trades");
-      var insiderTrades = financialDatasets.getInsiderTrades(ticker, startDate, endDate, 50);
-      LOGGER.info("Got insider trades: {}", insiderTrades);
+    updateProgress(ticker, "Fetching recent price data for reference");
+    var prices = financialDatasets.getPrices(ticker, startDate, endDate);
+    LOGGER.info("Got prices: {}", prices);
 
-      updateProgress(t, "Fetching company news");
-      var companyNews = financialDatasets.getCompanyNews(ticker, startDate, endDate, 50);
-      LOGGER.info("Got company news: {}", companyNews);
+    // Perform sub-analyses:
+    updateProgress(ticker, "Analyzing growth");
+    var growthAnalysis = analyzeLynchGrowth(financialLineItems);
 
-      updateProgress(t, "Fetching recent price data for reference");
-      var prices = financialDatasets.getPrices(ticker, startDate, endDate);
-      LOGGER.info("Got prices: {}", prices);
+    updateProgress(ticker, "Analyzing fundamentals");
+    var fundamentalsAnalysis = analyzeLynchFundamentals(financialLineItems);
 
-      // Perform sub-analyses:
-      updateProgress(t, "Analyzing growth");
-      var growthAnalysis = analyzeLynchGrowth(financialLineItems);
+    updateProgress(ticker, "Analyzing valuation (focus on PEG)");
+    var valuationAnalysis = analyzeLynchValuation(financialLineItems, marketCap);
 
-      updateProgress(t, "Analyzing fundamentals");
-      var fundamentalsAnalysis = analyzeLynchFundamentals(financialLineItems);
+    updateProgress(ticker, "Analyzing sentiment");
+    var sentimentAnalysis = analyzeSentiment(companyNews);
 
-      updateProgress(t, "Analyzing valuation (focus on PEG)");
-      var valuationAnalysis = analyzeLynchValuation(financialLineItems, marketCap);
+    updateProgress(ticker, "Analyzing insider activity");
+    var insiderActivity = analyzeInsiderActivity(insiderTrades);
 
-      updateProgress(t, "Analyzing sentiment");
-      var sentimentAnalysis = analyzeSentiment(companyNews);
+    // Combine partial scores with weights typical for Peter Lynch:
+    // 30% Growth, 25% Valuation, 20% Fundamentals,
+    // 15% Sentiment, 10% Insider Activity = 100%
+    double totalScore =
+        new BigDecimal(growthAnalysis.score())
+            .multiply(new BigDecimal("0.30"))
+            .add(new BigDecimal(valuationAnalysis.score()).multiply(new BigDecimal("0.25")))
+            .add(new BigDecimal(fundamentalsAnalysis.score()).multiply(new BigDecimal("0.20")))
+            .add(new BigDecimal(sentimentAnalysis.score()).multiply(new BigDecimal("0.15")))
+            .add(new BigDecimal(insiderActivity.score()).multiply(new BigDecimal("0.10")))
+            .doubleValue();
 
-      updateProgress(t, "Analyzing insider activity");
-      var insiderActivity = analyzeInsiderActivity(insiderTrades);
+    int maxPossibleScore = 10;
 
-      // Combine partial scores with weights typical for Peter Lynch:
-      // 30% Growth, 25% Valuation, 20% Fundamentals,
-      // 15% Sentiment, 10% Insider Activity = 100%
-      double totalScore =
-          new BigDecimal(growthAnalysis.score())
-              .multiply(new BigDecimal("0.30"))
-              .add(new BigDecimal(valuationAnalysis.score()).multiply(new BigDecimal("0.25")))
-              .add(new BigDecimal(fundamentalsAnalysis.score()).multiply(new BigDecimal("0.20")))
-              .add(new BigDecimal(sentimentAnalysis.score()).multiply(new BigDecimal("0.15")))
-              .add(new BigDecimal(insiderActivity.score()).multiply(new BigDecimal("0.10")))
-              .doubleValue();
-
-      int maxPossibleScore = 10;
-
-      Signal signal = null;
-      // Map final score to signal
-      if (totalScore >= 7.5) {
-        signal = Signal.bullish;
-      } else if (totalScore <= 4.5) {
-        signal = Signal.bearish;
-      } else {
-        signal = Signal.neutral;
-      }
-
-      updateProgress(t, "Generating Peter Lynch analysis");
-
-      AnalysisResult analysisResult =
-          new AnalysisResult(
-              signal,
-              (int) totalScore,
-              maxPossibleScore,
-              growthAnalysis,
-              valuationAnalysis,
-              fundamentalsAnalysis,
-              sentimentAnalysis,
-              insiderActivity);
-
-      updateProgress(t, "Generating Peter Lynch analysis");
-
-      AgentSignal output = generateOutput(t, analysisResult, toolContext);
-
-      // Store analysis in consistent format with other agents
-      analysis.put(ticker, output);
-
-      updateProgress(t, "Done");
-
-      updateProgress(null, "Done");
+    Signal signal = null;
+    // Map final score to signal
+    if (totalScore >= 7.5) {
+      signal = Signal.bullish;
+    } else if (totalScore <= 4.5) {
+      signal = Signal.bearish;
+    } else {
+      signal = Signal.neutral;
     }
 
-    return analysis;
+    updateProgress(ticker, "Generating Peter Lynch analysis");
+
+    AnalysisResult analysisResult =
+        new AnalysisResult(
+            signal,
+            (int) totalScore,
+            maxPossibleScore,
+            growthAnalysis,
+            valuationAnalysis,
+            fundamentalsAnalysis,
+            sentimentAnalysis,
+            insiderActivity);
+
+    updateProgress(ticker, "Generating Peter Lynch analysis");
+
+    AgentSignal output = generateOutput(ticker, analysisResult, toolContext);
+
+    updateProgress(ticker, "Done");
+
+    return output;
   }
 
   /**
@@ -596,7 +585,8 @@ public class AgentPeterLynchTool {
       return objectMapper.readValue(withoutMarkdown, AgentSignal.class);
     } catch (JsonProcessingException e) {
       LOGGER.warn("Error in analysis, defaulting to neutral", e);
-      return new AgentSignal(Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
+      return new AgentSignal(
+          ticker, Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
     }
   }
 
@@ -645,6 +635,7 @@ public class AgentPeterLynchTool {
 
                                             Return the trading signal in the following JSON format exactly:
                                             {{
+                                              "ticker": the company ticker,
                                               "signal": "bullish" | "bearish" | "neutral",
                                               "confidence": float between 0 and 100,
                                               "reasoning": "string"
