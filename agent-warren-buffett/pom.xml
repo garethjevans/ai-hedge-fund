@@ -10,8 +10,8 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>agent-warren-buffet</artifactId>
-    <name>Agent :: Warren Buffet</name>
+    <artifactId>agent-warren-buffett</artifactId>
+    <name>Agent :: Warren Buffett</name>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 

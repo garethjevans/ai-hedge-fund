@@ -17,7 +17,7 @@
 	<modules>
 		<module>financial-datasets</module>
 		<module>agent-common</module>
-		<module>agent-warren-buffet</module>
+		<module>agent-warren-buffett</module>
 		<module>agent-michael-burry</module>
 		<module>agent-peter-lynch</module>
 		<module>risk-manager</module>
