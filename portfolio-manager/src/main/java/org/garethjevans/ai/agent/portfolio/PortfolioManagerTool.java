@@ -8,7 +8,10 @@ import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import io.modelcontextprotocol.spec.McpSchema;
 import org.garethjevans.ai.common.AgentSignal;
+import org.garethjevans.ai.common.Result;
 import org.garethjevans.ai.common.Signal;
 import org.garethjevans.ai.util.risk.Portfolio;
 import org.garethjevans.ai.util.risk.RiskManager;
@@ -16,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.mcp.McpToolUtils;
 import org.springframework.ai.template.st.StTemplateRenderer;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -26,16 +30,18 @@ public class PortfolioManagerTool {
 
   private final RiskManager riskManager;
   private final ObjectMapper objectMapper;
+  private final Portfolio portfolio;
 
-  public PortfolioManagerTool(RiskManager riskManager, ObjectMapper objectMapper) {
+  public PortfolioManagerTool(RiskManager riskManager, ObjectMapper objectMapper, Portfolio portfolio) {
     this.riskManager = riskManager;
     this.objectMapper = objectMapper;
+    this.portfolio = portfolio;
   }
 
   @Tool(
       name = "generate_trading_recommendations",
       description = "Generates trading recommendations from a list of agent signals")
-  public List<Recommendation> recommendationList(
+  public TradingRecommendations recommendationList(
       @ToolParam(description = "List of agent signals") List<AgentSignal> agentSignals,
       ToolContext toolContext) {
 
@@ -69,11 +75,80 @@ public class PortfolioManagerTool {
       // Get signals for the ticker
       signalsByTicker.put(
           ticker, new PortfolioSignal(agentSignal.signal(), agentSignal.confidence()));
+
       updateProgress(ticker, "Generating trading decisions");
     }
 
     updateProgress(null, "Generating trading decisions");
-    return List.of();
+
+    TradingRecommendations recommendations = generateOutput(signalsByTicker, currentPrices, maxShares, portfolio, toolContext);
+
+    updateProgress(null, "Done");
+
+    return recommendations;
+  }
+
+  private TradingRecommendations generateOutput(
+          Map<String, PortfolioSignal> signalsByTicker,
+          Map<String, BigDecimal> currentPrices,
+          Map<String, BigDecimal> maxShares,
+          Portfolio portfolio,
+           ToolContext toolContext) {
+    StringBuilder buffettOutput = new StringBuilder();
+
+    // LOGGER.info("toolContext: {}", toolContext.getContext());
+    McpToolUtils.getMcpExchange(toolContext)
+            .ifPresent(
+                    exchange -> {
+                      exchange.loggingNotification(
+                              McpSchema.LoggingMessageNotification.builder()
+                                      .level(McpSchema.LoggingLevel.INFO)
+                                      .data("Start sampling")
+                                      .build());
+
+                      if (exchange.getClientCapabilities().sampling() != null) {
+                        var messageRequestBuilder =
+                                McpSchema.CreateMessageRequest.builder()
+                                        .systemPrompt(generateSystemMessage())
+                                        .messages(
+                                                List.of(
+                                                        new McpSchema.SamplingMessage(
+                                                                McpSchema.Role.USER,
+                                                                new McpSchema.TextContent(
+                                                                        generateUserMessage(signalsByTicker, currentPrices, maxShares, portfolio)))));
+
+                        var llmMessageRequest =
+                                messageRequestBuilder
+                                        .modelPreferences(
+                                                McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
+                                        .build();
+                        McpSchema.CreateMessageResult llmResponse =
+                                exchange.createMessage(llmMessageRequest);
+
+                        buffettOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
+                      }
+
+                      exchange.loggingNotification(
+                              McpSchema.LoggingMessageNotification.builder()
+                                      .level(McpSchema.LoggingLevel.INFO)
+                                      .data("Finish Sampling")
+                                      .build());
+                    });
+
+    String withoutMarkdown = removeMarkdown(buffettOutput.toString());
+    LOGGER.info("Got sampling response '{}'", withoutMarkdown);
+
+    try {
+      return objectMapper.readValue(withoutMarkdown, TradingRecommendations.class);
+    } catch (JsonProcessingException e) {
+      LOGGER.warn("Error in analysis, returning no recommendations", e);
+      return new TradingRecommendations(Map.of());
+    }
+  }
+
+
+  private String removeMarkdown(String in) {
+    return in.replace("```json", "").replace("```", "").trim();
   }
 
   public String generateSystemMessage() {
@@ -128,26 +203,26 @@ public class PortfolioManagerTool {
         PromptTemplate.builder()
             .renderer(
                 StTemplateRenderer.builder()
-                    .startDelimiterToken('{')
-                    .endDelimiterToken('}')
+                    .startDelimiterToken('<')
+                    .endDelimiterToken('>')
                     .build())
             .template(
                 """
                                 Based on the team's analysis, make your trading decisions for each ticker.
 
                                 Here are the signals by ticker:
-                                {signals_by_ticker}
+                                <signals_by_ticker>
 
                                 Current Prices:
-                                {current_prices}
+                                <current_prices>
 
                                 Maximum Shares Allowed For Purchases:
-                                {max_shares}
+                                <max_shares>
 
-                                Portfolio Cash: {portfolio_cash}
-                                Current Positions: {portfolio_positions}
-                                Current Margin Requirement: {margin_requirement}
-                                Total Margin Used: {total_margin_used}
+                                Portfolio Cash: <portfolio_cash>
+                                Current Positions: <portfolio_positions>
+                                Current Margin Requirement: <margin_requirement>
+                                Total Margin Used: <total_margin_used>
 
                                 Output strictly in JSON with the following structure:
                                 {{
@@ -200,12 +275,6 @@ public class PortfolioManagerTool {
     LOGGER.info("{}: {} - {}", "Portfolio Manager", ticker, message);
   }
 
-  public record Recommendation(
-      @JsonProperty("ticker") String ticker,
-      @JsonProperty("action") Action action,
-      @JsonProperty("confidence") float confidence,
-      @JsonProperty("reasoning") String reasoning) {}
-
   private enum Action {
     BUY,
     SELL,
@@ -216,4 +285,13 @@ public class PortfolioManagerTool {
 
   public record PortfolioSignal(
       @JsonProperty("signal") Signal signal, @JsonProperty("confidence") float confidence) {}
+
+  public record Recommendation(
+          @JsonProperty("ticker") String ticker,
+          @JsonProperty("action") Action action,
+          @JsonProperty("confidence") float confidence,
+          @JsonProperty("reasoning") String reasoning) {}
+
+  public record TradingRecommendations(
+          @JsonProperty("decisions") Map<String, Recommendation> decisions) {}
 }

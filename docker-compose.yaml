@@ -7,7 +7,7 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./target/agent-warren-buffett-0.0.1-SNAPSHOT.jar
+          path: ./agent-warren-buffett/target/agent-warren-buffett-0.0.1-SNAPSHOT.jar
     container_name: agent-warren-buffett
     volumes:
       - cache-data:/cache
@@ -25,7 +25,7 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./target/agent-michael-burry-0.0.1-SNAPSHOT.jar
+          path: ./agent-michael-burry/target/agent-michael-burry-0.0.1-SNAPSHOT.jar
     container_name: agent-michael-burry
     volumes:
       - cache-data:/cache
@@ -43,7 +43,7 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./target/agent-peter-lynch-0.0.1-SNAPSHOT.jar
+          path: ./agent-peter-lynch/target/agent-peter-lynch-0.0.1-SNAPSHOT.jar
     container_name: agent-peter-lynch
     volumes:
       - cache-data:/cache
@@ -61,7 +61,7 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./target/portfolio-manager-0.0.1-SNAPSHOT.jar
+          path: ./portfolio-manager/target/portfolio-manager-0.0.1-SNAPSHOT.jar
     container_name: portfolio-manager
     volumes:
       - cache-data:/cache

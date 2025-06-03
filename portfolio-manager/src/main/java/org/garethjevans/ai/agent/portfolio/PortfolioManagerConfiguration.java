@@ -1,6 +1,7 @@
 package org.garethjevans.ai.agent.portfolio;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.garethjevans.ai.util.risk.Portfolio;
 import org.garethjevans.ai.util.risk.RiskManager;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -12,8 +13,8 @@ public class PortfolioManagerConfiguration {
 
   @Bean
   public PortfolioManagerTool portfolioManagerTool(
-      RiskManager riskManager, ObjectMapper objectMapper) {
-    return new PortfolioManagerTool(riskManager, objectMapper);
+          RiskManager riskManager, ObjectMapper objectMapper, Portfolio portfolio) {
+    return new PortfolioManagerTool(riskManager, objectMapper, portfolio);
   }
 
   @Bean

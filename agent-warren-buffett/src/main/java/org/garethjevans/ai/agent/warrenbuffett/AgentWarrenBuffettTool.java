@@ -553,15 +553,15 @@ public class AgentWarrenBuffettTool {
         PromptTemplate.builder()
             .renderer(
                 StTemplateRenderer.builder()
-                    .startDelimiterToken('{')
-                    .endDelimiterToken('}')
+                    .startDelimiterToken('<')
+                    .endDelimiterToken('>')
                     .build())
             .template(
                 """
                             Based on the following data, create the investment signal as Warren Buffett would:
 
-                            Analysis Data for {ticker}:
-                            {analysis_data}
+                            Analysis Data for <ticker>:
+                            <analysis_data>
 
                             Return the trading signal in the following JSON format exactly:
                             {{
