@@ -1,0 +1,27 @@
+server:
+  port: 10093
+  shutdown: immediate
+
+spring:
+  application:
+    name: portfolio-manager
+  ai:
+    mcp:
+      server:
+        name: portfolio-manager
+        version: 0.0.1-SNAPSHOT
+        type: SYNC
+        sse-message-endpoint: /mcp/messages
+        capabilities:
+          tool: true
+          resource: false
+          prompt: false
+          completion: false
+
+financial:
+  datasets:
+    url: https://api.financialdatasets.ai
+    api-key: ${FINANCIAL_DATASETS_API_KEY}
+    cache:
+      enabled: true
+      dir: ../financial-datasets/src/main/resources/cache
