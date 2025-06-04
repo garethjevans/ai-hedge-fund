@@ -387,59 +387,65 @@ public class AgentPeterLynchTool {
             .toList();
 
     // Approximate P/E via (market cap / net income) if net income is positive
+    BigDecimal peRatio = null;
     if (!netIncomes.isEmpty() && netIncomes.get(0).compareTo(BigDecimal.ZERO) > 0) {
-      BigDecimal peRatio = marketCap.divide(netIncomes.get(0), 2, RoundingMode.HALF_UP);
+      peRatio = marketCap.divide(netIncomes.get(0), 2, RoundingMode.HALF_UP);
       details.add("Estimated P/E: " + peRatio);
     } else {
       details.add("No positive net income => can't compute approximate P/E");
     }
 
-    //
-    //
-    //    # If we have at least 2 EPS data points, let's estimate growth
-    //    eps_growth_rate = None
-    //    if len(eps_values) >= 2:
-    //        latest_eps = eps_values[0]
-    //        older_eps = eps_values[-1]
-    //        if older_eps > 0:
-    //            eps_growth_rate = (latest_eps - older_eps) / older_eps
-    //            details.add("Approx EPS growth rate: {eps_growth_rate:.1%}")
-    //        else:
-    //            details.add("Cannot compute EPS growth rate (older EPS <= 0)")
-    //    else:
-    //        details.add("Not enough EPS data to compute growth rate")
-    //
-    //    # Compute PEG if possible
-    //    peg_ratio = None
-    //    if pe_ratio and eps_growth_rate and eps_growth_rate > 0:
-    //        # Peg ratio typically uses a percentage growth rate
-    //        # So if growth rate is 0.25, we treat it as 25 for the formula => PE / 25
-    //        # Alternatively, some treat it as 0.25 => we do (PE / (0.25 * 100)).
-    //        # Implementation can vary, but let's do a standard approach: PEG = PE / (Growth *
-    // 100).
-    //        peg_ratio = pe_ratio / (eps_growth_rate * 100)
-    //        details.add("PEG ratio: {peg_ratio:.2f}")
-    //
-    //    # Scoring logic:
-    //    #   - P/E < 15 => +2, < 25 => +1
-    //    #   - PEG < 1 => +3, < 2 => +2, < 3 => +1
-    //    if pe_ratio is not None:
-    //        if pe_ratio < 15:
-    //            raw_score += 2
-    //        elif pe_ratio < 25:
-    //            raw_score += 1
-    //
-    //    if peg_ratio is not None:
-    //        if peg_ratio < 1:
-    //            raw_score += 3
-    //        elif peg_ratio < 2:
-    //            raw_score += 2
-    //        elif peg_ratio < 3:
-    //            raw_score += 1
-    //
-    //    final_score = min(10, (raw_score / 5) * 10)
-    //    return {"score": final_score, "details": "; ".join(details)}
-    return new Result(rawScore, 0, String.join("; ", details));
+    // If we have at least 2 EPS data points, let's estimate growth
+    BigDecimal epsGrowthRate = null;
+    if (epsValues.size() >= 2) {
+      BigDecimal latestEps = epsValues.getFirst();
+      BigDecimal olderEps = epsValues.getLast();
+      if (olderEps.compareTo(BigDecimal.ZERO) > 0) {
+        epsGrowthRate = (latestEps.subtract(olderEps)).divide(olderEps, 2, RoundingMode.HALF_UP);
+        details.add("Approx EPS growth rate: " + epsGrowthRate);
+      } else {
+        details.add("Cannot compute EPS growth rate (older EPS <= 0)");
+      }
+    } else {
+      details.add("Not enough EPS data to compute growth rate");
+    }
+
+    // Compute PEG if possible
+    BigDecimal pegRatio = null;
+    if (peRatio != null && epsGrowthRate != null && epsGrowthRate.compareTo(BigDecimal.ZERO) > 0) {
+
+      // Peg ratio typically uses a percentage growth rate
+      // So if growth rate is 0.25, we treat it as 25 for the formula => PE / 25
+      // Alternatively, some treat it as 0.25 => we do (PE / (0.25 * 100)).
+      // Implementation can vary, but let's do a standard approach: PEG = PE / (Growth * 100).
+      pegRatio = peRatio.divide(epsGrowthRate.multiply(new BigDecimal(100)), 2, RoundingMode.HALF_UP);
+
+      details.add("PEG ratio: " + pegRatio);
+    }
+
+    // Scoring logic:
+    //  - P/E < 15 => +2, < 25 => +1
+    if (peRatio != null) {
+      if (peRatio.compareTo(new BigDecimal(15)) < 0) {
+        rawScore += 2;
+      } else if (peRatio.compareTo(new BigDecimal(25)) < 0) {
+        rawScore += 1;
+      }
+    }
+
+    //  - PEG < 1 => +3, < 2 => +2, < 3 => +1
+    if (pegRatio != null) {
+      if (pegRatio.compareTo(new BigDecimal(1)) < 0) {
+        rawScore += 3;
+      } else if (pegRatio.compareTo(new BigDecimal(2)) < 0) {
+        rawScore += 2;
+      } else if (pegRatio.compareTo(new BigDecimal(3)) < 0) {
+        rawScore += 1;
+      }
+    }
+
+    int finalScore = Math.min(10, (rawScore / 5) * 10);
+    return new Result(finalScore, 0, String.join("; ", details));
   }
 
   /** Basic news sentiment check. Negative headlines weigh on the final score. */
