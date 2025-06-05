@@ -418,7 +418,8 @@ public class AgentPeterLynchTool {
       // So if growth rate is 0.25, we treat it as 25 for the formula => PE / 25
       // Alternatively, some treat it as 0.25 => we do (PE / (0.25 * 100)).
       // Implementation can vary, but let's do a standard approach: PEG = PE / (Growth * 100).
-      pegRatio = peRatio.divide(epsGrowthRate.multiply(new BigDecimal(100)), 2, RoundingMode.HALF_UP);
+      pegRatio =
+          peRatio.divide(epsGrowthRate.multiply(new BigDecimal(100)), 2, RoundingMode.HALF_UP);
 
       details.add("PEG ratio: " + pegRatio);
     }
