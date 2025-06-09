@@ -1,6 +1,10 @@
 package org.garethjevans.ai.agent.fundamentals;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.garethjevans.ai.common.AgentSignal;
 import org.garethjevans.ai.common.Signal;
 import org.garethjevans.ai.fd.*;
@@ -10,9 +14,6 @@ import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 
-import java.time.LocalDate;
-import java.util.List;
-
 public class AgentFundamentalsTool {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AgentFundamentalsTool.class);
@@ -20,12 +21,9 @@ public class AgentFundamentalsTool {
   private static final String AGENT_NAME = "Fundamentals Agent";
 
   private final FinancialDatasetsService financialDatasets;
-  private final ObjectMapper objectMapper;
 
-  public AgentFundamentalsTool(
-      FinancialDatasetsService financialDatasets, ObjectMapper objectMapper) {
+  public AgentFundamentalsTool(FinancialDatasetsService financialDatasets) {
     this.financialDatasets = financialDatasets;
-    this.objectMapper = objectMapper;
   }
 
   @Tool(
@@ -36,187 +34,168 @@ public class AgentFundamentalsTool {
       ToolContext toolContext) {
     LOGGER.info("Analyzes stocks using Fundamentals principles.");
 
-
-    // ##### Fundamental Agent #####
-    // def fundamentals_analyst_agent(state: AgentState):
-    //    """Analyzes fundamental data and generates trading signals for multiple tickers."""
     LocalDate endDate = LocalDate.now();
-    LocalDate startDate = endDate.minusYears(1);
-
-    //
-    //    # Initialize fundamental analysis for each ticker
-    //    fundamental_analysis = {}
-    //
-    //    for ticker in tickers:
-    //        progress.update_status("fundamentals_analyst_agent", ticker, "Fetching financial
-    // metrics")
 
     updateProgress(ticker, "Fetching financial metrics");
     List<Metrics> metrics = financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 10);
 
-    //        # Get the financial metrics
-    //        financial_metrics = get_financial_metrics(
-    //            ticker=ticker,
-    //            end_date=end_date,
-    //            period="ttm",
-    //            limit=10,
-    //        )
-    //
-    //        if not financial_metrics:
-    //            progress.update_status("fundamentals_analyst_agent", ticker, "Failed: No financial
-    // metrics found")
-    //            continue
-    //
-    //        # Pull the most recent financial metrics
-    //        metrics = financial_metrics[0]
-    //
-    //        # Initialize signals list for different fundamental aspects
-    //        signals = []
-    //        reasoning = {}
-    //
-    //        progress.update_status("fundamentals_analyst_agent", ticker, "Analyzing
-    // profitability")
-    //        # 1. Profitability Analysis
-    //        return_on_equity = metrics.return_on_equity
-    //        net_margin = metrics.net_margin
-    //        operating_margin = metrics.operating_margin
-    //
-    //        thresholds = [
-    //            (return_on_equity, 0.15),  # Strong ROE above 15%
-    //            (net_margin, 0.20),  # Healthy profit margins
-    //            (operating_margin, 0.15),  # Strong operating efficiency
-    //        ]
-    //        profitability_score = sum(metric is not None and metric > threshold for metric,
-    // threshold in thresholds)
-    //
-    //        signals.append("bullish" if profitability_score >= 2 else "bearish" if
-    // profitability_score == 0 else "neutral")
-    //        reasoning["profitability_signal"] = {
-    //            "signal": signals[0],
-    //            "details": (f"ROE: {return_on_equity:.2%}" if return_on_equity else "ROE: N/A") +
-    // ", " + (f"Net Margin: {net_margin:.2%}" if net_margin else "Net Margin: N/A") + ", " + (f"Op
-    // Margin: {operating_margin:.2%}" if operating_margin else "Op Margin: N/A"),
-    //        }
-    //
-    //        progress.update_status("fundamentals_analyst_agent", ticker, "Analyzing growth")
-    //        # 2. Growth Analysis
-    //        revenue_growth = metrics.revenue_growth
-    //        earnings_growth = metrics.earnings_growth
-    //        book_value_growth = metrics.book_value_growth
-    //
-    //        thresholds = [
-    //            (revenue_growth, 0.10),  # 10% revenue growth
-    //            (earnings_growth, 0.10),  # 10% earnings growth
-    //            (book_value_growth, 0.10),  # 10% book value growth
-    //        ]
-    //        growth_score = sum(metric is not None and metric > threshold for metric, threshold in
-    // thresholds)
-    //
-    //        signals.append("bullish" if growth_score >= 2 else "bearish" if growth_score == 0 else
-    // "neutral")
-    //        reasoning["growth_signal"] = {
-    //            "signal": signals[1],
-    //            "details": (f"Revenue Growth: {revenue_growth:.2%}" if revenue_growth else
-    // "Revenue Growth: N/A") + ", " + (f"Earnings Growth: {earnings_growth:.2%}" if earnings_growth
-    // else "Earnings Growth: N/A"),
-    //        }
-    //
-    //        progress.update_status("fundamentals_analyst_agent", ticker, "Analyzing financial
-    // health")
-    //        # 3. Financial Health
-    //        current_ratio = metrics.current_ratio
-    //        debt_to_equity = metrics.debt_to_equity
-    //        free_cash_flow_per_share = metrics.free_cash_flow_per_share
-    //        earnings_per_share = metrics.earnings_per_share
-    //
-    //        health_score = 0
-    //        if current_ratio and current_ratio > 1.5:  # Strong liquidity
-    //            health_score += 1
-    //        if debt_to_equity and debt_to_equity < 0.5:  # Conservative debt levels
-    //            health_score += 1
-    //        if free_cash_flow_per_share and earnings_per_share and free_cash_flow_per_share >
-    // earnings_per_share * 0.8:  # Strong FCF conversion
-    //            health_score += 1
-    //
-    //        signals.append("bullish" if health_score >= 2 else "bearish" if health_score == 0 else
-    // "neutral")
-    //        reasoning["financial_health_signal"] = {
-    //            "signal": signals[2],
-    //            "details": (f"Current Ratio: {current_ratio:.2f}" if current_ratio else "Current
-    // Ratio: N/A") + ", " + (f"D/E: {debt_to_equity:.2f}" if debt_to_equity else "D/E: N/A"),
-    //        }
-    //
-    //        progress.update_status("fundamentals_analyst_agent", ticker, "Analyzing valuation
-    // ratios")
-    //        # 4. Price to X ratios
-    //        pe_ratio = metrics.price_to_earnings_ratio
-    //        pb_ratio = metrics.price_to_book_ratio
-    //        ps_ratio = metrics.price_to_sales_ratio
-    //
-    //        thresholds = [
-    //            (pe_ratio, 25),  # Reasonable P/E ratio
-    //            (pb_ratio, 3),  # Reasonable P/B ratio
-    //            (ps_ratio, 5),  # Reasonable P/S ratio
-    //        ]
-    //        price_ratio_score = sum(metric is not None and metric > threshold for metric,
-    // threshold in thresholds)
-    //
-    //        signals.append("bearish" if price_ratio_score >= 2 else "bullish" if price_ratio_score
-    // == 0 else "neutral")
-    //        reasoning["price_ratios_signal"] = {
-    //            "signal": signals[3],
-    //            "details": (f"P/E: {pe_ratio:.2f}" if pe_ratio else "P/E: N/A") + ", " + (f"P/B:
-    // {pb_ratio:.2f}" if pb_ratio else "P/B: N/A") + ", " + (f"P/S: {ps_ratio:.2f}" if ps_ratio
-    // else "P/S: N/A"),
-    //        }
-    //
-    //        progress.update_status("fundamentals_analyst_agent", ticker, "Calculating final
-    // signal")
-    //        # Determine overall signal
-    //        bullish_signals = signals.count("bullish")
-    //        bearish_signals = signals.count("bearish")
-    //
-    //        if bullish_signals > bearish_signals:
-    //            overall_signal = "bullish"
-    //        elif bearish_signals > bullish_signals:
-    //            overall_signal = "bearish"
-    //        else:
-    //            overall_signal = "neutral"
-    //
-    //        # Calculate confidence level
-    //        total_signals = len(signals)
-    //        confidence = round(max(bullish_signals, bearish_signals) / total_signals, 2) * 100
-    //
-    //        fundamental_analysis[ticker] = {
-    //            "signal": overall_signal,
-    //            "confidence": confidence,
-    //            "reasoning": reasoning,
-    //        }
-    //
-    //        progress.update_status("fundamentals_analyst_agent", ticker, "Done",
-    // analysis=json.dumps(reasoning, indent=4))
-    //
-    //    # Create the fundamental analysis message
-    //    message = HumanMessage(
-    //        content=json.dumps(fundamental_analysis),
-    //        name="fundamentals_analyst_agent",
-    //    )
-    //
-    //    # Print the reasoning if the flag is set
-    //    if state["metadata"]["show_reasoning"]:
-    //        show_agent_reasoning(fundamental_analysis, "Fundamental Analysis Agent")
-    //
-    //    # Add the signal to the analyst_signals list
-    //    state["data"]["analyst_signals"]["fundamentals_analyst_agent"] = fundamental_analysis
-    //
-    //    progress.update_status("fundamentals_analyst_agent", None, "Done")
-    //
-    //    return {
-    //        "messages": [message],
-    //        "data": data,
-    //    }
+    // Get the financial metrics
+    if (metrics.isEmpty()) {
+      updateProgress(ticker, "Failed: No financial metrics found");
+    }
 
-    return new AgentSignal(ticker, Signal.neutral, 0.0f, "");
+    // Pull the most recent financial metrics
+    Metrics latest = metrics.get(0);
+
+    // Initialize signals list for different fundamental aspects
+    List<Signal> signals = new ArrayList<>();
+    List<String> reasoning = new ArrayList<>();
+
+    // 1. Profitability Analysis
+    updateProgress(ticker, "Analyzing profitability");
+    BigDecimal returnOnEquity = latest.returnOnEquity();
+    BigDecimal netMargin = latest.netMargin();
+    BigDecimal operatingMargin = latest.operatingMargin();
+
+    Map<BigDecimal, BigDecimal> thresholds =
+        Map.of(
+            returnOnEquity, new BigDecimal("0.15"), // Strong ROE above 15%
+            netMargin, new BigDecimal("0.20"), // Healthy profit margins
+            operatingMargin, new BigDecimal("0.15") // Strong operating efficiency
+            );
+
+    long profitabilityScore =
+        thresholds.entrySet().stream()
+            .filter(e -> e.getKey() != null && e.getKey().compareTo(e.getValue()) > 0)
+            .count();
+
+    if (profitabilityScore >= 2) {
+      signals.add(Signal.bullish);
+    } else if (profitabilityScore > 0) {
+      signals.add(Signal.neutral);
+    } else {
+      signals.add(Signal.bearish);
+    }
+
+    reasoning.add("ROE: " + returnOnEquity);
+    reasoning.add("Net Margin: " + netMargin);
+    reasoning.add("Op Margin: " + operatingMargin);
+
+    // 2. Growth Analysis
+    updateProgress(ticker, "Analyzing growth");
+    BigDecimal revenueGrowth = latest.revenueGrowth();
+    BigDecimal earningsGrowth = latest.earningsGrowth();
+    BigDecimal bookValueGrowth = latest.bookValueGrowth();
+
+    thresholds =
+        Map.of(
+            revenueGrowth, new BigDecimal("0.10"), // 10% revenue growth
+            earningsGrowth, new BigDecimal("0.10"), // 10% earnings growth
+            bookValueGrowth, new BigDecimal("0.10") // 10% book value growth
+            );
+
+    long growthScore =
+        thresholds.entrySet().stream()
+            .filter(e -> e.getKey() != null && e.getKey().compareTo(e.getValue()) > 0)
+            .count();
+
+    if (growthScore >= 2) {
+      signals.add(Signal.bullish);
+    } else if (growthScore > 0) {
+      signals.add(Signal.neutral);
+    } else {
+      signals.add(Signal.bearish);
+    }
+
+    reasoning.add("Revenue Growth: " + revenueGrowth);
+    reasoning.add("Earnings Growth: " + earningsGrowth);
+
+    // 3. Financial Health
+    updateProgress(ticker, "Analyzing financial health");
+    BigDecimal currentRatio = latest.currentRatio();
+    BigDecimal debtToEquity = latest.debtToEquity();
+    BigDecimal freeCashFlowPerShare = latest.freeCashFlowPerShare();
+    BigDecimal earningsPerShare = latest.earningsPerShare();
+
+    int healthScore = 0;
+    if (currentRatio != null && currentRatio.compareTo(new BigDecimal("1.5")) > 0) {
+      // Strong liquidity
+      healthScore += 1;
+    }
+
+    if (debtToEquity != null && debtToEquity.compareTo(new BigDecimal("0.5")) < 0) {
+      // Conservative debt levels
+      healthScore += 1;
+    }
+
+    if (freeCashFlowPerShare != null
+        && earningsPerShare != null
+        && freeCashFlowPerShare.compareTo(earningsPerShare.multiply(new BigDecimal("0.8"))) > 0) {
+      // Strong FCF conversion
+      healthScore += 1;
+    }
+
+    if (healthScore >= 2) {
+      signals.add(Signal.bullish);
+    } else if (healthScore > 0) {
+      signals.add(Signal.neutral);
+    } else {
+      signals.add(Signal.bearish);
+    }
+
+    reasoning.add("Current Ratio: " + currentRatio);
+    reasoning.add("Debt to Equity: " + debtToEquity);
+
+    // 4. Price to X ratios
+    updateProgress(ticker, "Analyzing valuation ratios");
+    BigDecimal peRatio = latest.priceToEarningsRatio();
+    BigDecimal pbRatio = latest.priceToBookRatio();
+    BigDecimal psRatio = latest.priceToSalesRatio();
+
+    thresholds =
+        Map.of(
+            peRatio, new BigDecimal("25"), // Reasonable P/E ratio
+            pbRatio, new BigDecimal("3"), // Reasonable P/B ratio
+            psRatio, new BigDecimal("5") // Reasonable P/S ratio
+            );
+
+    long priceRatioScore =
+        thresholds.entrySet().stream()
+            .filter(e -> e.getKey() != null && e.getKey().compareTo(e.getValue()) > 0)
+            .count();
+
+    if (priceRatioScore >= 2) {
+      signals.add(Signal.bullish);
+    } else if (priceRatioScore > 0) {
+      signals.add(Signal.neutral);
+    } else {
+      signals.add(Signal.bearish);
+    }
+
+    reasoning.add("P/E: " + peRatio);
+    reasoning.add("P/B: " + pbRatio);
+    reasoning.add("P/S: " + psRatio);
+
+    updateProgress(ticker, "Calculating final signal");
+
+    // Determine overall signal
+    long bullishSignals = signals.stream().filter(s -> s.equals(Signal.bullish)).count();
+    long bearishSignals = signals.stream().filter(s -> s.equals(Signal.bearish)).count();
+
+    Signal overall = null;
+    if (bullishSignals > bearishSignals) {
+      overall = Signal.bullish;
+    } else if (bearishSignals > bullishSignals) {
+      overall = Signal.bearish;
+    } else {
+      overall = Signal.neutral;
+    }
+
+    // Calculate confidence level
+    int totalSignals = signals.size();
+    float confidence = ((float) Math.max(bullishSignals, bearishSignals) / totalSignals) * 100;
+
+    return new AgentSignal(ticker, overall, confidence, String.join("; ", reasoning));
   }
 
   private void updateProgress(String ticker, String message) {

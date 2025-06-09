@@ -1,6 +1,7 @@
 package org.garethjevans.ai.agent.sentiment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
 import org.garethjevans.ai.common.AgentSignal;
 import org.garethjevans.ai.common.Signal;
 import org.garethjevans.ai.fd.*;
@@ -9,8 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-
-import java.time.LocalDate;
 
 public class AgentSentimentTool {
 
