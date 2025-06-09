@@ -1,7 +1,11 @@
 package org.garethjevans.ai.agent.sentiment;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import org.garethjevans.ai.common.AgentSignal;
 import org.garethjevans.ai.common.Signal;
 import org.garethjevans.ai.fd.*;
@@ -18,11 +22,9 @@ public class AgentSentimentTool {
   private static final String AGENT_NAME = "Sentiment Agent";
 
   private final FinancialDatasetsService financialDatasets;
-  private final ObjectMapper objectMapper;
 
-  public AgentSentimentTool(FinancialDatasetsService financialDatasets, ObjectMapper objectMapper) {
+  public AgentSentimentTool(FinancialDatasetsService financialDatasets) {
     this.financialDatasets = financialDatasets;
-    this.objectMapper = objectMapper;
   }
 
   @Tool(
@@ -33,115 +35,114 @@ public class AgentSentimentTool {
       ToolContext toolContext) {
     LOGGER.info("Analyzes stocks using Sentiment principles.");
 
-    // ##### Sentiment Agent #####
-    // def sentiment_analyst_agent(state: AgentState):
-    //    """Analyzes market sentiment and generates trading signals for multiple tickers."""
-    //    data = state.get("data", {})
-    //    end_date = data.get("end_date")
-    //    tickers = data.get("tickers")
     LocalDate endDate = LocalDate.now();
-    LocalDate startDate = endDate.minusYears(1);
+    LocalDate startDate = LocalDate.now().minusYears(1);
+    List<String> reasoning = new ArrayList<>();
 
-    //
-    //    # Initialize sentiment analysis for each ticker
+    // Initialize sentiment analysis for each ticker
     //    sentiment_analysis = {}
-    //
-    //    for ticker in tickers:
-    //        progress.update_status("sentiment_analyst_agent", ticker, "Fetching insider trades")
-    //
-    //        # Get the insider trades
-    //        insider_trades = get_insider_trades(
-    //            ticker=ticker,
-    //            end_date=end_date,
-    //            limit=1000,
-    //        )
 
     updateProgress(ticker, "Getting insider trades");
     var insiderTrades = financialDatasets.getInsiderTrades(ticker, startDate, endDate, 1000);
     LOGGER.info("Got insider trades: {}", insiderTrades);
 
-    //
-    //        progress.update_status("sentiment_analyst_agent", ticker, "Analyzing trading
-    // patterns")
-    //
-    //        # Get the signals from the insider trades
-    //        transaction_shares = pd.Series([t.transaction_shares for t in
-    // insider_trades]).dropna()
-    //        insider_signals = np.where(transaction_shares < 0, "bearish", "bullish").tolist()
-    //
-    //        progress.update_status("sentiment_analyst_agent", ticker, "Fetching company news")
-    //
-    //        # Get the company news
-    //        company_news = get_company_news(ticker, end_date, limit=100)
-    //
-    //        # Get the sentiment from the company news
-    //        sentiment = pd.Series([n.sentiment for n in company_news]).dropna()
-    //        news_signals = np.where(sentiment == "negative", "bearish",
-    //                              np.where(sentiment == "positive", "bullish",
-    // "neutral")).tolist()
-    //
-    //        progress.update_status("sentiment_analyst_agent", ticker, "Combining signals")
-    //        # Combine signals from both sources with weights
-    //        insider_weight = 0.3
-    //        news_weight = 0.7
-    //
-    //        # Calculate weighted signal counts
-    //        bullish_signals = (
-    //            insider_signals.count("bullish") * insider_weight +
-    //            news_signals.count("bullish") * news_weight
-    //        )
-    //        bearish_signals = (
-    //            insider_signals.count("bearish") * insider_weight +
-    //            news_signals.count("bearish") * news_weight
-    //        )
-    //
-    //        if bullish_signals > bearish_signals:
-    //            overall_signal = "bullish"
-    //        elif bearish_signals > bullish_signals:
-    //            overall_signal = "bearish"
-    //        else:
-    //            overall_signal = "neutral"
-    //
-    //        # Calculate confidence level based on the weighted proportion
-    //        total_weighted_signals = len(insider_signals) * insider_weight + len(news_signals) *
-    // news_weight
-    //        confidence = 0  # Default confidence when there are no signals
-    //        if total_weighted_signals > 0:
-    //            confidence = round((max(bullish_signals, bearish_signals) /
-    // total_weighted_signals) * 100, 2)
-    //        reasoning = f"Weighted Bullish signals: {bullish_signals:.1f}, Weighted Bearish
-    // signals: {bearish_signals:.1f}"
-    //
-    //        sentiment_analysis[ticker] = {
-    //            "signal": overall_signal,
-    //            "confidence": confidence,
-    //            "reasoning": reasoning,
-    //        }
-    //
-    //        progress.update_status("sentiment_analyst_agent", ticker, "Done",
-    // analysis=json.dumps(reasoning, indent=4))
-    //
-    //    # Create the sentiment message
-    //    message = HumanMessage(
-    //        content=json.dumps(sentiment_analysis),
-    //        name="sentiment_analyst_agent",
-    //    )
-    //
-    //    # Print the reasoning if the flag is set
-    //    if state["metadata"]["show_reasoning"]:
-    //        show_agent_reasoning(sentiment_analysis, "Sentiment Analysis Agent")
-    //
-    //    # Add the signal to the analyst_signals list
-    //    state["data"]["analyst_signals"]["sentiment_agent"] = sentiment_analysis
-    //
-    //    progress.update_status("sentiment_analyst_agent", None, "Done")
-    //
-    //    return {
-    //        "messages": [message],
-    //        "data": data,
-    //    }
+    updateProgress(ticker, "Analyzing trading patterns");
 
-    return new AgentSignal(ticker, Signal.neutral, 0.0f, "");
+    // Get the signals from the insider trades
+    List<BigDecimal> transactionShares =
+        insiderTrades.stream()
+            .map(InsiderTrade::transactionShares)
+            .filter(Objects::nonNull)
+            .toList();
+
+    List<Signal> insiderSignals =
+        transactionShares.stream()
+            .map(s -> s.compareTo(BigDecimal.ZERO) < 0 ? Signal.bearish : Signal.bullish)
+            .toList();
+
+    // Get the company news
+    updateProgress(ticker, "Fetching company news");
+    var companyNews = financialDatasets.getCompanyNews(ticker, startDate, endDate, 100);
+
+    // Get the sentiment from the company news
+
+    List<String> sentiment =
+        companyNews.stream().map(CompanyNews::sentiment).filter(Objects::nonNull).toList();
+
+    List<Signal> newsSignals =
+        sentiment.stream()
+            .map(
+                s -> {
+                  if (s.equalsIgnoreCase("negative")) {
+                    return Signal.bearish;
+                  } else if (s.equalsIgnoreCase("positive")) {
+                    return Signal.bullish;
+                  } else {
+                    return Signal.neutral;
+                  }
+                })
+            .toList();
+
+    // Combine signals from both sources with weights
+    updateProgress(ticker, "Combining signals");
+
+    BigDecimal insiderWeight = new BigDecimal("0.3");
+    BigDecimal newsWeight = new BigDecimal("0.7");
+
+    // Calculate weighted signal counts
+    BigDecimal bullishSignals =
+        new BigDecimal(
+                insiderSignals.stream().filter(signal -> signal.equals(Signal.bullish)).count())
+            .multiply(insiderWeight)
+            .add(
+                new BigDecimal(
+                        newsSignals.stream()
+                            .filter(signal -> signal.equals(Signal.bullish))
+                            .count())
+                    .multiply(newsWeight));
+    BigDecimal bearishSignals =
+        new BigDecimal(
+                insiderSignals.stream().filter(signal -> signal.equals(Signal.bearish)).count())
+            .multiply(insiderWeight)
+            .add(
+                new BigDecimal(
+                        newsSignals.stream()
+                            .filter(signal -> signal.equals(Signal.bearish))
+                            .count())
+                    .multiply(newsWeight));
+
+    Signal overall = null;
+
+    if (bullishSignals.compareTo(bearishSignals) > 0) {
+      overall = Signal.bullish;
+    } else if (bearishSignals.compareTo(bullishSignals) > 0) {
+      overall = Signal.bearish;
+    } else {
+      overall = Signal.neutral;
+    }
+
+    // Calculate confidence level based on the weighted proportion
+    BigDecimal totalWeightedSignals =
+        new BigDecimal(insiderSignals.size())
+            .multiply(insiderWeight)
+            .add(new BigDecimal(newsSignals.size()).multiply(newsWeight));
+
+    // Default confidence when there are no signals
+    float confidence = 0f;
+
+    if (totalWeightedSignals.compareTo(BigDecimal.ZERO) > 0) {
+      confidence =
+          bullishSignals
+              .max(bearishSignals)
+              .divide(totalWeightedSignals, 2, RoundingMode.HALF_EVEN)
+              .multiply(new BigDecimal(100))
+              .floatValue();
+    }
+
+    reasoning.add("Weighted Bullish signals: " + bullishSignals);
+    reasoning.add("Weighted Bearish signals: " + bearishSignals);
+
+    return new AgentSignal(ticker, overall, confidence, String.join("; ", reasoning));
   }
 
   private void updateProgress(String ticker, String message) {
