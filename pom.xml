@@ -20,6 +20,10 @@
 		<module>agent-warren-buffett</module>
 		<module>agent-michael-burry</module>
 		<module>agent-peter-lynch</module>
+		<module>agent-fundamentals</module>
+		<module>agent-sentiment</module>
+		<module>agent-technical</module>
+		<module>agent-valuations</module>
 		<module>risk-manager</module>
 		<module>portfolio-manager</module>
 	</modules>
