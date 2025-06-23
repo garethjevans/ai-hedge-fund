@@ -1,6 +1,6 @@
 package org.garethjevans.ai.agent.technical;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
 import org.garethjevans.ai.common.AgentSignal;
 import org.garethjevans.ai.common.Signal;
 import org.garethjevans.ai.fd.*;
@@ -17,13 +17,33 @@ public class AgentTechnicalTool {
   private static final String AGENT_NAME = "Technical Agent";
 
   private final FinancialDatasetsService financialDatasets;
-  private final ObjectMapper objectMapper;
 
-  public AgentTechnicalTool(FinancialDatasetsService financialDatasets, ObjectMapper objectMapper) {
+  public AgentTechnicalTool(FinancialDatasetsService financialDatasets) {
     this.financialDatasets = financialDatasets;
-    this.objectMapper = objectMapper;
   }
 
+  /**
+   * Sophisticated technical analysis system that combines multiple trading strategies for multiple
+   * tickers:
+   *
+   * <ul>
+   *   <ol>
+   *     Trend Following
+   *   </ol>
+   *   <ol>
+   *     Mean Reversion
+   *   </ol>
+   *   <ol>
+   *     Momentum
+   *   </ol>
+   *   <ol>
+   *     Volatility Analysis
+   *   </ol>
+   *   <ol>
+   *     Statistical Arbitrage Signals
+   *   </ol>
+   * </ul>
+   */
   @Tool(
       name = "technical_analysis",
       description = "Performs stock analysis using Technical methods by ticker")
@@ -32,57 +52,36 @@ public class AgentTechnicalTool {
       ToolContext toolContext) {
     LOGGER.info("Analyzes stocks using Technical principles.");
 
-    // ##### Technical Analyst #####
-    // def technical_analyst_agent(state: AgentState):
-    //    """
-    //    Sophisticated technical analysis system that combines multiple trading strategies for
-    // multiple tickers:
-    //    1. Trend Following
-    //    2. Mean Reversion
-    //    3. Momentum
-    //    4. Volatility Analysis
-    //    5. Statistical Arbitrage Signals
-    //    """
-    //    data = state["data"]
-    //    start_date = data["start_date"]
-    //    end_date = data["end_date"]
-    //    tickers = data["tickers"]
-    //
-    //    # Initialize analysis for each ticker
+    LocalDate endDate = LocalDate.now();
+    LocalDate startDate = endDate.minusYears(1);
+
+    // Initialize analysis for each ticker
     //    technical_analysis = {}
-    //
-    //    for ticker in tickers:
-    //        progress.update_status("technical_analyst_agent", ticker, "Analyzing price data")
-    //
-    //        # Get the historical price data
-    //        prices = get_prices(
-    //            ticker=ticker,
-    //            start_date=start_date,
-    //            end_date=end_date,
-    //        )
-    //
-    //        if not prices:
-    //            progress.update_status("technical_analyst_agent", ticker, "Failed: No price data
-    // found")
-    //            continue
-    //
-    //        # Convert prices to a DataFrame
+
+    updateProgress(ticker, "Analyzing price data");
+    var prices = financialDatasets.getPrices(ticker, startDate, endDate);
+
+    if (prices == null || prices.isEmpty()) {
+      updateProgress(ticker, "Failed: No price data found");
+      return null;
+    }
+
+    // Convert prices to a DataFrame
     //        prices_df = prices_to_df(prices)
     //
-    //        progress.update_status("technical_analyst_agent", ticker, "Calculating trend signals")
+    updateProgress(ticker, "Calculating trend signals");
     //        trend_signals = calculate_trend_signals(prices_df)
     //
-    //        progress.update_status("technical_analyst_agent", ticker, "Calculating mean
-    // reversion")
+    updateProgress(ticker, "Calculating mean reversion");
     //        mean_reversion_signals = calculate_mean_reversion_signals(prices_df)
     //
-    //        progress.update_status("technical_analyst_agent", ticker, "Calculating momentum")
+    updateProgress(ticker, "Calculating momentum");
     //        momentum_signals = calculate_momentum_signals(prices_df)
     //
-    //        progress.update_status("technical_analyst_agent", ticker, "Analyzing volatility")
+    updateProgress(ticker, "Analyzing volatility");
     //        volatility_signals = calculate_volatility_signals(prices_df)
     //
-    //        progress.update_status("technical_analyst_agent", ticker, "Statistical analysis")
+    updateProgress(ticker, "Statistical analysis");
     //        stat_arb_signals = calculate_stat_arb_signals(prices_df)
     //
     //        # Combine all signals using a weighted ensemble approach

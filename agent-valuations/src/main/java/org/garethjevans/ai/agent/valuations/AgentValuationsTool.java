@@ -1,6 +1,9 @@
 package org.garethjevans.ai.agent.valuations;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.List;
 import org.garethjevans.ai.common.AgentSignal;
 import org.garethjevans.ai.common.Signal;
 import org.garethjevans.ai.fd.*;
@@ -17,12 +20,9 @@ public class AgentValuationsTool {
   private static final String AGENT_NAME = "Valuations Agent";
 
   private final FinancialDatasetsService financialDatasets;
-  private final ObjectMapper objectMapper;
 
-  public AgentValuationsTool(
-      FinancialDatasetsService financialDatasets, ObjectMapper objectMapper) {
+  public AgentValuationsTool(FinancialDatasetsService financialDatasets) {
     this.financialDatasets = financialDatasets;
-    this.objectMapper = objectMapper;
   }
 
   @Tool(
@@ -37,54 +37,64 @@ public class AgentValuationsTool {
     //    """Run valuation across tickers and write signals back to `state`."""
     //
     //    data = state["data"]
-    //    end_date = data["end_date"]
-    //    tickers = data["tickers"]
+    LocalDate endDate = LocalDate.now();
     //
     //    valuation_analysis: dict[str, dict] = {}
     //
     //    for ticker in tickers:
-    //        progress.update_status("valuation_analyst_agent", ticker, "Fetching financial data")
+    updateProgress(ticker, "Fetching financial data");
     //
-    //        # --- Historical financial metrics (pull 8 latest TTM snapshots for medians) ---
-    //        financial_metrics = get_financial_metrics(
-    //            ticker=ticker,
-    //            end_date=end_date,
-    //            period="ttm",
-    //            limit=8,
-    //        )
-    //        if not financial_metrics:
-    //            progress.update_status("valuation_analyst_agent", ticker, "Failed: No financial
-    // metrics found")
-    //            continue
-    //        most_recent_metrics = financial_metrics[0]
+    // Historical financial metrics (pull 8 latest TTM snapshots for medians) ---
+    List<Metrics> metrics = financialDatasets.getFinancialMetrics(ticker, endDate, Period.ttm, 8);
+
+    if (metrics.isEmpty()) {
+      updateProgress(ticker, "Failed: No financial metrics found");
+      return null;
+    }
+
+    Metrics mostRecentMetric = metrics.get(0);
+    // --- Fine‑grained line‑items (need two periods to calc WC change) ---
+    updateProgress(ticker, "Gathering line items");
+
+    List<LineItem> lineItems =
+        financialDatasets.searchLineItems(
+            ticker,
+            endDate,
+            List.of(
+                "free_cash_flow",
+                "net_income",
+                "depreciation_and_amortization",
+                "capital_expenditure",
+                "working_capital"),
+            Period.ttm,
+            2);
+
+    if (lineItems.size() < 2) {
+      updateProgress(ticker, "Failed: Insufficient financial line items");
+      return null;
+    }
+
+    LineItem liCurrent = lineItems.get(0);
+    LineItem liPrevious = lineItems.get(1);
+
+    // ------------------------------------------------------------------
+    // Valuation models
+    // ------------------------------------------------------------------
+    BigDecimal workingCapitalChange =
+        liCurrent.get("working_capital").subtract(liPrevious.get("working_capital"));
+
     //
-    //        # --- Fine‑grained line‑items (need two periods to calc WC change) ---
-    //        progress.update_status("valuation_analyst_agent", ticker, "Gathering line items")
-    //        line_items = search_line_items(
-    //            ticker=ticker,
-    //            line_items=[
-    //                "free_cash_flow",
-    //                "net_income",
-    //                "depreciation_and_amortization",
-    //                "capital_expenditure",
-    //                "working_capital",
-    //            ],
-    //            end_date=end_date,
-    //            period="ttm",
-    //            limit=2,
-    //        )
-    //        if len(line_items) < 2:
-    //            progress.update_status("valuation_analyst_agent", ticker, "Failed: Insufficient
-    // financial line items")
-    //            continue
-    //        li_curr, li_prev = line_items[0], line_items[1]
-    //
-    //        # ------------------------------------------------------------------
-    //        # Valuation models
-    //        # ------------------------------------------------------------------
-    //        wc_change = li_curr.working_capital - li_prev.working_capital
-    //
-    //        # Owner Earnings
+    // Owner Earnings
+    BigDecimal ownerValue =
+        calculateOwnerEarningsValue(
+            liCurrent.get("net_income"),
+            liCurrent.get("depreciation_and_amortization"),
+            liCurrent.get("capital_expenditure"),
+            workingCapitalChange,
+            mostRecentMetric.earningsGrowth() == null
+                ? new BigDecimal("0.05")
+                : mostRecentMetric.earningsGrowth());
+
     //        owner_val = calculate_owner_earnings_value(
     //            net_income=li_curr.net_income,
     //            depreciation=li_curr.depreciation_and_amortization,
@@ -93,7 +103,7 @@ public class AgentValuationsTool {
     //            growth_rate=most_recent_metrics.earnings_growth or 0.05,
     //        )
     //
-    //        # Discounted Cash Flow
+    // Discounted Cash Flow
     //        dcf_val = calculate_intrinsic_value(
     //            free_cash_flow=li_curr.free_cash_flow,
     //            growth_rate=most_recent_metrics.earnings_growth or 0.05,
@@ -102,10 +112,10 @@ public class AgentValuationsTool {
     //            num_years=5,
     //        )
     //
-    //        # Implied Equity Value
+    // Implied Equity Value
     //        ev_ebitda_val = calculate_ev_ebitda_value(financial_metrics)
     //
-    //        # Residual Income Model
+    // Residual Income Model
     //        rim_val = calculate_residual_income_value(
     //            market_cap=most_recent_metrics.market_cap,
     //            net_income=li_curr.net_income,
@@ -113,13 +123,14 @@ public class AgentValuationsTool {
     //            book_value_growth=most_recent_metrics.book_value_growth or 0.03,
     //        )
     //
-    //        # ------------------------------------------------------------------
-    //        # Aggregate & signal
-    //        # ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // Aggregate & signal
+    // ------------------------------------------------------------------
     //        market_cap = get_market_cap(ticker, end_date)
+    BigDecimal marketCap = financialDatasets.getMarketCap(ticker, endDate);
+
     //        if not market_cap:
-    //            progress.update_status("valuation_analyst_agent", ticker, "Failed: Market cap
-    // unavailable")
+    updateProgress(ticker, "Failed: Market cap unavailable");
     //            continue
     //
     //        method_values = {
@@ -165,57 +176,13 @@ public class AgentValuationsTool {
     //            "confidence": confidence,
     //            "reasoning": reasoning,
     //        }
-    //        progress.update_status("valuation_analyst_agent", ticker, "Done",
-    // analysis=json.dumps(reasoning, indent=4))
-    //
-    //    # ---- Emit message (for LLM tool chain) ----
-    //    msg = HumanMessage(content=json.dumps(valuation_analysis), name="valuation_analyst_agent")
-    //    if state["metadata"].get("show_reasoning"):
-    //        show_agent_reasoning(valuation_analysis, "Valuation Analysis Agent")
-    //
-    //    # Add the signal to the analyst_signals list
-    //    state["data"]["analyst_signals"]["valuation_analyst_agent"] = valuation_analysis
-    //
-    //    progress.update_status("valuation_analyst_agent", None, "Done")
-    //
-    //    return {"messages": [msg], "data": data}
-    //
+    updateProgress(ticker, "Done");
+
     // #############################
     // # Helper Valuation Functions
     // #############################
     //
-    // def calculate_owner_earnings_value(
-    //    net_income: float | None,
-    //    depreciation: float | None,
-    //    capex: float | None,
-    //    working_capital_change: float | None,
-    //    growth_rate: float = 0.05,
-    //    required_return: float = 0.15,
-    //    margin_of_safety: float = 0.25,
-    //    num_years: int = 5,
-    // ) -> float:
-    //    """Buffett owner‑earnings valuation with margin‑of‑safety."""
-    //    if not all(isinstance(x, (int, float)) for x in [net_income, depreciation, capex,
-    // working_capital_change]):
-    //        return 0
-    //
-    //    owner_earnings = net_income + depreciation - capex - working_capital_change
-    //    if owner_earnings <= 0:
-    //        return 0
-    //
-    //    pv = 0.0
-    //    for yr in range(1, num_years + 1):
-    //        future = owner_earnings * (1 + growth_rate) ** yr
-    //        pv += future / (1 + required_return) ** yr
-    //
-    //    terminal_growth = min(growth_rate, 0.03)
-    //    term_val = (owner_earnings * (1 + growth_rate) ** num_years * (1 + terminal_growth)) / (
-    //        required_return - terminal_growth
-    //    )
-    //    pv_term = term_val / (1 + required_return) ** num_years
-    //
-    //    intrinsic = pv + pv_term
-    //    return intrinsic * (1 - margin_of_safety)
+
     //
     //
     // def calculate_intrinsic_value(
@@ -294,6 +261,67 @@ public class AgentValuationsTool {
     //    return intrinsic * 0.8  # 20% margin of safety
 
     return new AgentSignal(ticker, Signal.neutral, 0.0f, "");
+  }
+
+  /** Buffett owner‑earnings valuation with margin‑of‑safety. */
+  private BigDecimal calculateOwnerEarningsValue(
+      BigDecimal netIncome,
+      BigDecimal depreciationAndAmortization,
+      BigDecimal capitalExpenditure,
+      BigDecimal workingCapitalChange,
+      BigDecimal growthRate) {
+    BigDecimal requiredReturn = new BigDecimal("0.15");
+    BigDecimal marginOfSafety = new BigDecimal("0.25");
+    int numYears = 5;
+
+    // def calculate_owner_earnings_value(
+    //    net_income: float | None,
+    //    depreciation: float | None,
+    //    capex: float | None,
+    //    working_capital_change: float | None,
+    //    growth_rate: float = 0.05,
+    //    required_return: float = 0.15,
+    //    margin_of_safety: float = 0.25,
+    //    num_years: int = 5,
+    // ) -> float:
+    //    """"""
+    //    if not all(isinstance(x, (int, float)) for x in [net_income, depreciation, capex,
+    // working_capital_change]):
+    //        return 0
+
+    BigDecimal ownerEarnings =
+        netIncome
+            .add(depreciationAndAmortization)
+            .subtract(capitalExpenditure)
+            .subtract(workingCapitalChange);
+    if (ownerEarnings.compareTo(BigDecimal.ZERO) <= 0) {
+      return BigDecimal.ZERO;
+    }
+
+    //
+    BigDecimal pv = BigDecimal.ZERO;
+    //    for yr in range(1, num_years + 1):
+    for (int yr = 1; yr <= numYears; yr++) {
+      // future = owner_earnings * (1 + growth_rate) ** yr
+      BigDecimal future = ownerEarnings.multiply((BigDecimal.ONE.add(growthRate).pow(yr)));
+      // pv += future / (1 + required_return) ** yr
+      pv =
+          pv.add(
+              future.divide(BigDecimal.ONE.add(requiredReturn).pow(yr), 2, RoundingMode.HALF_UP));
+    }
+
+    BigDecimal terminalGrowth = growthRate.min(new BigDecimal("0.03"));
+
+    //    terminal_growth = min(growth_rate, 0.03)
+    //    term_val = (owner_earnings * (1 + growth_rate) ** num_years * (1 + terminal_growth)) / (
+    //        required_return - terminal_growth
+    //    )
+    //    pv_term = term_val / (1 + required_return) ** num_years
+    //
+    //    intrinsic = pv + pv_term
+    //    return intrinsic * (1 - margin_of_safety)
+
+    return BigDecimal.ZERO;
   }
 
   private void updateProgress(String ticker, String message) {
