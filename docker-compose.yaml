@@ -71,5 +71,77 @@ services:
     ports:
       - "10093:10093"
 
+  agent-fundamentals:
+    image: 'agent-fundamentals:latest'
+    build:
+      context: ./agent-fundamentals
+      dockerfile: ./Dockerfile
+    develop:
+      watch:
+        - action: rebuild
+          path: ./agent-fundamentals/target/agent-fundamentals-0.0.1-SNAPSHOT.jar
+    container_name: agent-fundamentals
+    volumes:
+      - cache-data:/cache
+    environment:
+      - FINANCIAL_DATASETS_API_KEY=$FINANCIAL_DATASETS_API_KEY
+      - FINANCIAL_DATASETS_CACHE_DIR=/cache
+    ports:
+      - "10094:10094"
+
+  agent-sentiment:
+    image: 'agent-sentiment:latest'
+    build:
+      context: ./agent-sentiment
+      dockerfile: ./Dockerfile
+    develop:
+      watch:
+        - action: rebuild
+          path: ./agent-sentiment/target/agent-sentiment-0.0.1-SNAPSHOT.jar
+    container_name: agent-sentiment
+    volumes:
+      - cache-data:/cache
+    environment:
+      - FINANCIAL_DATASETS_API_KEY=$FINANCIAL_DATASETS_API_KEY
+      - FINANCIAL_DATASETS_CACHE_DIR=/cache
+    ports:
+      - "10095:10095"
+
+  agent-technical:
+    image: 'agent-technical:latest'
+    build:
+      context: ./agent-technical
+      dockerfile: ./Dockerfile
+    develop:
+      watch:
+        - action: rebuild
+          path: ./agent-technical/target/agent-technical-0.0.1-SNAPSHOT.jar
+    container_name: agent-technical
+    volumes:
+      - cache-data:/cache
+    environment:
+      - FINANCIAL_DATASETS_API_KEY=$FINANCIAL_DATASETS_API_KEY
+      - FINANCIAL_DATASETS_CACHE_DIR=/cache
+    ports:
+      - "10096:10096"
+
+  agent-valuations:
+    image: 'agent-valuations:latest'
+    build:
+      context: ./agent-valuations
+      dockerfile: ./Dockerfile
+    develop:
+      watch:
+        - action: rebuild
+          path: ./agent-valuations/target/agent-valuations-0.0.1-SNAPSHOT.jar
+    container_name: agent-valuations
+    volumes:
+      - cache-data:/cache
+    environment:
+      - FINANCIAL_DATASETS_API_KEY=$FINANCIAL_DATASETS_API_KEY
+      - FINANCIAL_DATASETS_CACHE_DIR=/cache
+    ports:
+      - "10097:10097"
+
 volumes:
   cache-data:
