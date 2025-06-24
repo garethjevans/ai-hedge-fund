@@ -9,3 +9,18 @@ financial:
     cache:
       enabled: true
       dir: ../financial-datasets/src/main/resources/cache
+
+portfolio:
+  positions:
+    - ticker: AVGO
+      longPosition: 5000.0
+      shortPosition: 0
+    - ticker: AAPL
+      longPosition: 5000.0
+      shortPosition: 0
+    - ticker: MSFT
+      longPosition: 5000.0
+      shortPosition: 0
+    - ticker: CRWV
+      longPosition: 5000.0
+      shortPosition: 0

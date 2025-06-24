@@ -38,6 +38,13 @@ public class PortfolioManagerTool {
   }
 
   @Tool(
+      name = "current_positions",
+      description = "Returns the current trading positions of this portfolio")
+  public List<Portfolio.Position> currentPositions(ToolContext toolContext) {
+    return portfolio.all();
+  }
+
+  @Tool(
       name = "generate_trading_recommendations",
       description = "Generates trading recommendations from a list of agent signals")
   public TradingRecommendations recommendationList(

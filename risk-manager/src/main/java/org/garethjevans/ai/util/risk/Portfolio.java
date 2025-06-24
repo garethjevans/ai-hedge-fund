@@ -8,11 +8,13 @@ public class Portfolio {
   private final BigDecimal cash;
   private final BigDecimal marginRequirement;
   private final BigDecimal marginUsed;
+  private final List<Position> positions;
 
-  public Portfolio(BigDecimal cash, BigDecimal marginRequirement) {
+  public Portfolio(BigDecimal cash, BigDecimal marginRequirement, List<Position> positions) {
     this.cash = cash;
     this.marginRequirement = marginRequirement;
     this.marginUsed = BigDecimal.ZERO;
+    this.positions = positions;
   }
 
   public BigDecimal cash() {
@@ -28,11 +30,11 @@ public class Portfolio {
   }
 
   public Position position(String ticker) {
-    return new Position(ticker, BigDecimal.ZERO, BigDecimal.ZERO);
+    return positions.stream().filter(p -> p.ticker.equals(ticker)).findFirst().orElse(null);
   }
 
   public List<Position> all() {
-    return List.of();
+    return positions;
   }
 
   public record Position(String ticker, BigDecimal longPosition, BigDecimal shortPosition) {}
