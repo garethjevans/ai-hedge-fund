@@ -25,3 +25,8 @@ financial:
     cache:
       enabled: true
       dir: ../financial-datasets/src/main/resources/cache
+
+logging:
+  level:
+    root: INFO
+    io.modelcontextprotocol: DEBUG
