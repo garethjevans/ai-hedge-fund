@@ -100,57 +100,57 @@ public class PortfolioManagerTool {
       Map<String, BigDecimal> maxShares,
       Portfolio portfolio,
       ToolContext toolContext) {
-    StringBuilder tradingSignalOutput = new StringBuilder();
-
-    McpToolUtils.getMcpExchange(toolContext)
-        .ifPresent(
-            exchange -> {
-              exchange.loggingNotification(
-                  McpSchema.LoggingMessageNotification.builder()
-                      .level(McpSchema.LoggingLevel.INFO)
-                      .data("Calculating Trading Signal")
-                      .build());
-
-              if (exchange.getClientCapabilities().sampling() != null) {
-                var messageRequestBuilder =
-                    McpSchema.CreateMessageRequest.builder()
-                        .systemPrompt(generateSystemMessage())
-                        .messages(
-                            List.of(
-                                new McpSchema.SamplingMessage(
-                                    McpSchema.Role.USER,
-                                    new McpSchema.TextContent(
-                                        generateUserMessage(
-                                            signalsByTicker,
-                                            currentPrices,
-                                            maxShares,
-                                            portfolio)))));
-
-                var llmMessageRequest =
-                    messageRequestBuilder
-                        //                        .modelPreferences(
-                        //
-                        // McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
-                        .build();
-                McpSchema.CreateMessageResult llmResponse =
-                    exchange.createMessage(llmMessageRequest);
-
-                tradingSignalOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
-              }
-
-              exchange.loggingNotification(
-                  McpSchema.LoggingMessageNotification.builder()
-                      .level(McpSchema.LoggingLevel.INFO)
-                      .data("Completed Trading Signal")
-                      .build());
-            });
-
-    String withoutMarkdown = removeMarkdown(tradingSignalOutput.toString());
-    LOGGER.info("Got sampling response '{}'", withoutMarkdown);
-
     try {
+      StringBuilder tradingSignalOutput = new StringBuilder();
+
+      McpToolUtils.getMcpExchange(toolContext)
+          .ifPresent(
+              exchange -> {
+                exchange.loggingNotification(
+                    McpSchema.LoggingMessageNotification.builder()
+                        .level(McpSchema.LoggingLevel.INFO)
+                        .data("Calculating Trading Signal")
+                        .build());
+
+                if (exchange.getClientCapabilities().sampling() != null) {
+                  var messageRequestBuilder =
+                      McpSchema.CreateMessageRequest.builder()
+                          .systemPrompt(generateSystemMessage())
+                          .messages(
+                              List.of(
+                                  new McpSchema.SamplingMessage(
+                                      McpSchema.Role.USER,
+                                      new McpSchema.TextContent(
+                                          generateUserMessage(
+                                              signalsByTicker,
+                                              currentPrices,
+                                              maxShares,
+                                              portfolio)))));
+
+                  var llmMessageRequest =
+                      messageRequestBuilder
+                          // .modelPreferences(
+                          // McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
+                          .build();
+                  McpSchema.CreateMessageResult llmResponse =
+                      exchange.createMessage(llmMessageRequest);
+
+                  tradingSignalOutput.append(
+                      ((McpSchema.TextContent) llmResponse.content()).text());
+                }
+
+                exchange.loggingNotification(
+                    McpSchema.LoggingMessageNotification.builder()
+                        .level(McpSchema.LoggingLevel.INFO)
+                        .data("Completed Trading Signal")
+                        .build());
+              });
+
+      String withoutMarkdown = removeMarkdown(tradingSignalOutput.toString());
+      LOGGER.info("Got sampling response '{}'", withoutMarkdown);
+
       return objectMapper.readValue(withoutMarkdown, TradingRecommendations.class);
-    } catch (JsonProcessingException e) {
+    } catch (Exception e) {
       LOGGER.warn("Error in analysis, returning no recommendations", e);
       return new TradingRecommendations(Map.of());
     }
