@@ -35,10 +35,16 @@ public class Portfolio {
   }
 
   public Position position(String ticker) {
-    return positions.stream().filter(p -> p.ticker.equals(ticker)).findFirst().orElse(null);
+    return all().stream()
+        .filter(p -> p.ticker.equals(ticker))
+        .findFirst()
+        .orElse(new Position(ticker, BigDecimal.ZERO, BigDecimal.ZERO));
   }
 
   public List<Position> all() {
+    if (positions == null) {
+      return List.of();
+    }
     return positions;
   }
 
