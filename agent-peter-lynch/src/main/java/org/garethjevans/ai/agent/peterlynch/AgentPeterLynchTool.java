@@ -544,53 +544,54 @@ public class AgentPeterLynchTool {
 
   private AgentSignal generateOutput(
       String ticker, AnalysisResult analysisResult, ToolContext toolContext) {
-    StringBuilder output = new StringBuilder();
-
-    // LOGGER.info("toolContext: {}", toolContext.getContext());
-    McpToolUtils.getMcpExchange(toolContext)
-        .ifPresent(
-            exchange -> {
-              exchange.loggingNotification(
-                  McpSchema.LoggingMessageNotification.builder()
-                      .level(McpSchema.LoggingLevel.INFO)
-                      .data("Start sampling")
-                      .build());
-
-              if (exchange.getClientCapabilities().sampling() != null) {
-                var messageRequestBuilder =
-                    McpSchema.CreateMessageRequest.builder()
-                        .systemPrompt(generateSystemMessage())
-                        .messages(
-                            List.of(
-                                new McpSchema.SamplingMessage(
-                                    McpSchema.Role.USER,
-                                    new McpSchema.TextContent(
-                                        generateUserMessage(ticker, analysisResult)))));
-
-                var llmMessageRequest =
-                    messageRequestBuilder
-                        .modelPreferences(
-                            McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
-                        .build();
-                McpSchema.CreateMessageResult llmResponse =
-                    exchange.createMessage(llmMessageRequest);
-
-                output.append(((McpSchema.TextContent) llmResponse.content()).text());
-              }
-
-              exchange.loggingNotification(
-                  McpSchema.LoggingMessageNotification.builder()
-                      .level(McpSchema.LoggingLevel.INFO)
-                      .data("Finish Sampling")
-                      .build());
-            });
-
-    String withoutMarkdown = removeMarkdown(output.toString());
-    LOGGER.info("Got sampling response '{}'", withoutMarkdown);
-
     try {
+      StringBuilder samplingOutput = new StringBuilder();
+
+      McpToolUtils.getMcpExchange(toolContext)
+          .ifPresent(
+              exchange -> {
+                exchange.loggingNotification(
+                    McpSchema.LoggingMessageNotification.builder()
+                        .level(McpSchema.LoggingLevel.INFO)
+                        .data("Generating " + AGENT_NAME + " output")
+                        .build());
+
+                if (exchange.getClientCapabilities().sampling() != null) {
+                  var messageRequestBuilder =
+                      McpSchema.CreateMessageRequest.builder()
+                          .systemPrompt(generateSystemMessage())
+                          .messages(
+                              List.of(
+                                  new McpSchema.SamplingMessage(
+                                      McpSchema.Role.USER,
+                                      new McpSchema.TextContent(
+                                          generateUserMessage(ticker, analysisResult)))));
+
+                  var llmMessageRequest =
+                      messageRequestBuilder
+                          // .modelPreferences(
+                          // McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
+                          .build();
+                  McpSchema.CreateMessageResult llmResponse =
+                      exchange.createMessage(llmMessageRequest);
+
+                  samplingOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
+                } else {
+                  LOGGER.warn("Client does not support sampling");
+                }
+
+                exchange.loggingNotification(
+                    McpSchema.LoggingMessageNotification.builder()
+                        .level(McpSchema.LoggingLevel.INFO)
+                        .data(AGENT_NAME + " Finished")
+                        .build());
+              });
+
+      String withoutMarkdown = removeMarkdown(samplingOutput.toString());
+      LOGGER.info("Got sampling response '{}'", withoutMarkdown);
+
       return objectMapper.readValue(withoutMarkdown, AgentSignal.class).withAgent(AGENT_NAME);
-    } catch (JsonProcessingException e) {
+    } catch (Exception e) {
       LOGGER.warn("Error in analysis, defaulting to neutral", e);
       return new AgentSignal(
           AGENT_NAME, ticker, Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
