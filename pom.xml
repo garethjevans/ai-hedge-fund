@@ -29,8 +29,8 @@
 	</modules>
 	<properties>
 		<java.version>21</java.version>
-		<spring-ai.version>1.1.0-SNAPSHOT</spring-ai.version>
-		<override.mcp.version>0.11.0-SNAPSHOT</override.mcp.version>
+		<spring-ai.version>1.0.0</spring-ai.version>
+		<override.mcp.version>0.10.0</override.mcp.version>
 	</properties>
 
 	<dependencyManagement>
