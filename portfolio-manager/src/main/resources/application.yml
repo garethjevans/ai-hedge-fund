@@ -30,3 +30,18 @@ logging:
   level:
     root: INFO
     io.modelcontextprotocol: DEBUG
+
+portfolio:
+  positions:
+    - ticker: AVGO
+      longPosition: 5000.0
+      shortPosition: 0
+    - ticker: AAPL
+      longPosition: 5000.0
+      shortPosition: 0
+    - ticker: MSFT
+      longPosition: 5000.0
+      shortPosition: 0
+    - ticker: V
+      longPosition: 5000.0
+      shortPosition: 0

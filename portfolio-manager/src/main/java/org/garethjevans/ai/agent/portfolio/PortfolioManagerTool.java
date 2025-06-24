@@ -41,6 +41,7 @@ public class PortfolioManagerTool {
       name = "current_positions",
       description = "Returns the current trading positions of this portfolio")
   public List<Portfolio.Position> currentPositions(ToolContext toolContext) {
+    LOGGER.info("returning current trading positions");
     return portfolio.all();
   }
 

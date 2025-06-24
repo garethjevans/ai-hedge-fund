@@ -2,8 +2,12 @@ package org.garethjevans.ai.util.risk;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Portfolio {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(Portfolio.class);
 
   private final BigDecimal cash;
   private final BigDecimal marginRequirement;
@@ -15,6 +19,7 @@ public class Portfolio {
     this.marginRequirement = marginRequirement;
     this.marginUsed = BigDecimal.ZERO;
     this.positions = positions;
+    LOGGER.info("Portfolio created with positions {}", positions);
   }
 
   public BigDecimal cash() {
