@@ -48,7 +48,7 @@ public class PortfolioManagerTool {
     Map<String, BigDecimal> positionLimits = new HashMap<>();
     Map<String, BigDecimal> currentPrices = new HashMap<>();
     Map<String, BigDecimal> maxShares = new HashMap<>();
-    Map<String, PortfolioSignal> signalsByTicker = new HashMap<>();
+    Map<String, Map<String, PortfolioSignal>> signalsByTicker = new HashMap<>();
 
     // signals_by_ticker = {}
     // for ticker in tickers:
@@ -71,9 +71,15 @@ public class PortfolioManagerTool {
         maxShares.put(ticker, BigDecimal.ZERO);
       }
 
-      // Get signals for the ticker
-      signalsByTicker.put(
-          ticker, new PortfolioSignal(agentSignal.signal(), agentSignal.confidence()));
+      if (!signalsByTicker.containsKey(ticker)) {
+        signalsByTicker.put(ticker, new HashMap<>());
+      }
+
+      signalsByTicker
+          .get(ticker)
+          .put(
+              agentSignal.agent(),
+              new PortfolioSignal(agentSignal.signal(), agentSignal.confidence()));
 
       updateProgress(ticker, "Generating trading decisions");
     }
@@ -89,21 +95,20 @@ public class PortfolioManagerTool {
   }
 
   private TradingRecommendations generateOutput(
-      Map<String, PortfolioSignal> signalsByTicker,
+      Map<String, Map<String, PortfolioSignal>> signalsByTicker,
       Map<String, BigDecimal> currentPrices,
       Map<String, BigDecimal> maxShares,
       Portfolio portfolio,
       ToolContext toolContext) {
-    StringBuilder buffettOutput = new StringBuilder();
+    StringBuilder tradingSignalOutput = new StringBuilder();
 
-    // LOGGER.info("toolContext: {}", toolContext.getContext());
     McpToolUtils.getMcpExchange(toolContext)
         .ifPresent(
             exchange -> {
               exchange.loggingNotification(
                   McpSchema.LoggingMessageNotification.builder()
                       .level(McpSchema.LoggingLevel.INFO)
-                      .data("Start sampling")
+                      .data("Calculating Trading Signal")
                       .build());
 
               if (exchange.getClientCapabilities().sampling() != null) {
@@ -123,23 +128,24 @@ public class PortfolioManagerTool {
 
                 var llmMessageRequest =
                     messageRequestBuilder
-                        .modelPreferences(
-                            McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
+                        //                        .modelPreferences(
+                        //
+                        // McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
                         .build();
                 McpSchema.CreateMessageResult llmResponse =
                     exchange.createMessage(llmMessageRequest);
 
-                buffettOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
+                tradingSignalOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
               }
 
               exchange.loggingNotification(
                   McpSchema.LoggingMessageNotification.builder()
                       .level(McpSchema.LoggingLevel.INFO)
-                      .data("Finish Sampling")
+                      .data("Completed Trading Signal")
                       .build());
             });
 
-    String withoutMarkdown = removeMarkdown(buffettOutput.toString());
+    String withoutMarkdown = removeMarkdown(tradingSignalOutput.toString());
     LOGGER.info("Got sampling response '{}'", withoutMarkdown);
 
     try {
@@ -198,7 +204,7 @@ public class PortfolioManagerTool {
   }
 
   public String generateUserMessage(
-      Map<String, PortfolioSignal> signalsByTicker,
+      Map<String, Map<String, PortfolioSignal>> signalsByTicker,
       Map<String, BigDecimal> currentPrices,
       Map<String, BigDecimal> maxShares,
       Portfolio portfolio) {

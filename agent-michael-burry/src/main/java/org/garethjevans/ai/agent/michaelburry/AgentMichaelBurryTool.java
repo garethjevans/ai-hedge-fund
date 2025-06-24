@@ -326,16 +326,15 @@ public class AgentMichaelBurryTool {
 
   private AgentSignal generateOutput(
       String ticker, AnalysisResult analysisResult, ToolContext toolContext) {
-    StringBuilder buffettOutput = new StringBuilder();
+    StringBuilder samplingOutput = new StringBuilder();
 
-    // LOGGER.info("toolContext: {}", toolContext.getContext());
     McpToolUtils.getMcpExchange(toolContext)
         .ifPresent(
             exchange -> {
               exchange.loggingNotification(
                   McpSchema.LoggingMessageNotification.builder()
                       .level(McpSchema.LoggingLevel.INFO)
-                      .data("Start sampling")
+                      .data("Generating " + AGENT_NAME + " output")
                       .build());
 
               if (exchange.getClientCapabilities().sampling() != null) {
@@ -351,23 +350,26 @@ public class AgentMichaelBurryTool {
 
                 var llmMessageRequest =
                     messageRequestBuilder
-                        .modelPreferences(
-                            McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
+                        //                        .modelPreferences(
+                        //
+                        // McpSchema.ModelPreferences.builder().addHint("gpt-4o").build())
                         .build();
                 McpSchema.CreateMessageResult llmResponse =
                     exchange.createMessage(llmMessageRequest);
 
-                buffettOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
+                samplingOutput.append(((McpSchema.TextContent) llmResponse.content()).text());
+              } else {
+                LOGGER.warn("Client does not support sampling");
               }
 
               exchange.loggingNotification(
                   McpSchema.LoggingMessageNotification.builder()
                       .level(McpSchema.LoggingLevel.INFO)
-                      .data("Finish Sampling")
+                      .data(AGENT_NAME + " Finished")
                       .build());
             });
 
-    String withoutMarkdown = removeMarkdown(buffettOutput.toString());
+    String withoutMarkdown = removeMarkdown(samplingOutput.toString());
     LOGGER.info("Got sampling response '{}'", withoutMarkdown);
 
     try {
