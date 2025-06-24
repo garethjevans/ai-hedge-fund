@@ -142,7 +142,7 @@ public class AgentSentimentTool {
     reasoning.add("Weighted Bullish signals: " + bullishSignals);
     reasoning.add("Weighted Bearish signals: " + bearishSignals);
 
-    return new AgentSignal(ticker, overall, confidence, String.join("; ", reasoning));
+    return new AgentSignal(AGENT_NAME, ticker, overall, confidence, String.join("; ", reasoning));
   }
 
   private void updateProgress(String ticker, String message) {

@@ -260,7 +260,7 @@ public class AgentValuationsTool {
     //    intrinsic = book_val + pv_ri + pv_term
     //    return intrinsic * 0.8  # 20% margin of safety
 
-    return new AgentSignal(ticker, Signal.neutral, 0.0f, "");
+    return new AgentSignal(AGENT_NAME, ticker, Signal.neutral, 0.0f, "");
   }
 
   /** Buffett owner‑earnings valuation with margin‑of‑safety. */

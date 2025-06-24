@@ -371,11 +371,11 @@ public class AgentMichaelBurryTool {
     LOGGER.info("Got sampling response '{}'", withoutMarkdown);
 
     try {
-      return objectMapper.readValue(withoutMarkdown, AgentSignal.class);
+      return objectMapper.readValue(withoutMarkdown, AgentSignal.class).withAgent(AGENT_NAME);
     } catch (JsonProcessingException e) {
       LOGGER.warn("Error in analysis, defaulting to neutral", e);
       return new AgentSignal(
-          ticker, Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
+          AGENT_NAME, ticker, Signal.neutral, 0f, "Error in analysis, defaulting to neutral");
     }
   }
 

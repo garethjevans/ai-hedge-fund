@@ -52,21 +52,21 @@ public class FinancialDatasetsService {
   }
 
   private void logRequest(HttpRequest request, byte[] body) {
-    LOGGER.info("Request: {} {}", request.getMethod(), request.getURI());
+    LOGGER.debug("Request: {} {}", request.getMethod(), request.getURI());
     // logHeaders(request.getHeaders());
     if (body != null && body.length > 0) {
-      LOGGER.info("Request body: {}", new String(body, StandardCharsets.UTF_8));
+      LOGGER.debug("Request body: {}", new String(body, StandardCharsets.UTF_8));
     }
   }
 
   private <T> T cacheAwareGet(Class<T> type, String uri, Object... uriVariables) {
     String cacheableUri = UriComponentsBuilder.fromUriString(uri).build(uriVariables).toString();
-    LOGGER.info("cacheable uri: {}", cacheableUri);
+    LOGGER.debug("cacheable uri: {}", cacheableUri);
 
     if (cacheEnabled && cacheService.keyExists(cacheableUri)) {
       try {
         T t = mapper.readValue(cacheService.get(cacheableUri), type);
-        LOGGER.info("got response body from cache: {}", t);
+        LOGGER.debug("got response body from cache: {}", t);
         return t;
       } catch (JsonProcessingException e) {
         LOGGER.warn("Unable to read value from cache", e);
@@ -81,7 +81,7 @@ public class FinancialDatasetsService {
             .retrieve()
             .body(type);
 
-    LOGGER.info("got response body: {}", t);
+    LOGGER.debug("got response body: {}", t);
 
     try {
       cacheService.save(cacheableUri, mapper.writeValueAsString(t));
@@ -101,13 +101,13 @@ public class FinancialDatasetsService {
       throw new RuntimeException(e);
     }
 
-    LOGGER.info("cacheable uri: {}, with body {}", cacheableUri, jsonBody);
+    LOGGER.debug("cacheable uri: {}, with body {}", cacheableUri, jsonBody);
     String cacheKey = cacheableUri + "-" + jsonBody;
 
     if (cacheEnabled && cacheService.keyExists(cacheKey)) {
       try {
         T t = mapper.readValue(cacheService.get(cacheKey), type);
-        LOGGER.info("got response body from cache: {}", t);
+        LOGGER.debug("got response body from cache: {}", t);
         return t;
       } catch (JsonProcessingException e) {
         LOGGER.warn("Unable to read value from cache", e);
@@ -124,7 +124,7 @@ public class FinancialDatasetsService {
             .retrieve()
             .body(type);
 
-    LOGGER.info("got response body: {}", t);
+    LOGGER.debug("got response body: {}", t);
 
     try {
       cacheService.save(cacheKey, mapper.writeValueAsString(t));
