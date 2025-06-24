@@ -540,7 +540,7 @@ public class AgentTechnicalTool {
     //        # Return 0.5 (random walk) if calculation fails
     //        return 0.5
 
-    return new AgentSignal(ticker, Signal.neutral, 0.0f, "");
+    return new AgentSignal(AGENT_NAME, ticker, Signal.neutral, 0.0f, "");
   }
 
   private void updateProgress(String ticker, String message) {

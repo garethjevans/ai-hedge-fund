@@ -195,7 +195,7 @@ public class AgentFundamentalsTool {
     int totalSignals = signals.size();
     float confidence = ((float) Math.max(bullishSignals, bearishSignals) / totalSignals) * 100;
 
-    return new AgentSignal(ticker, overall, confidence, String.join("; ", reasoning));
+    return new AgentSignal(AGENT_NAME, ticker, overall, confidence, String.join("; ", reasoning));
   }
 
   private void updateProgress(String ticker, String message) {
