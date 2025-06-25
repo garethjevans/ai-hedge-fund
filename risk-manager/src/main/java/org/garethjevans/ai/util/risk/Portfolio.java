@@ -1,5 +1,6 @@
 package org.garethjevans.ai.util.risk;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.math.BigDecimal;
 import java.util.List;
 import org.slf4j.Logger;
@@ -34,14 +35,15 @@ public class Portfolio {
     return marginUsed;
   }
 
+  @JsonIgnore
   public Position position(String ticker) {
-    return all().stream()
+    return positions().stream()
         .filter(p -> p.ticker.equals(ticker))
         .findFirst()
         .orElse(new Position(ticker, BigDecimal.ZERO, BigDecimal.ZERO));
   }
 
-  public List<Position> all() {
+  public List<Position> positions() {
     if (positions == null) {
       return List.of();
     }

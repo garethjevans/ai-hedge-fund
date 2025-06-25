@@ -45,7 +45,7 @@ class DefaultRiskManager implements RiskManager {
     // Calculate total portfolio value based on current market prices (Net Liquidation Value)
     BigDecimal totalPortfolioValue = portfolio.cash();
 
-    List<Portfolio.Position> allPositions = portfolio.all();
+    List<Portfolio.Position> allPositions = portfolio.positions();
 
     BigDecimal totalShortValue =
         allPositions.stream()
