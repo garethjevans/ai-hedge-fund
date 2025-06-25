@@ -20,7 +20,7 @@ public class Portfolio {
     this.marginRequirement = marginRequirement;
     this.marginUsed = BigDecimal.ZERO;
     this.positions = positions;
-    LOGGER.info("Portfolio created with positions {}", positions);
+    LOGGER.info("Portfolio created {}", this);
   }
 
   public BigDecimal cash() {
