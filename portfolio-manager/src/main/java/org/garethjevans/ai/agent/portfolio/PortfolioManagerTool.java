@@ -37,12 +37,10 @@ public class PortfolioManagerTool {
     this.portfolio = portfolio;
   }
 
-  @Tool(
-      name = "current_positions",
-      description = "Returns the current trading positions of this portfolio")
-  public List<Portfolio.Position> currentPositions(ToolContext toolContext) {
-    LOGGER.info("returning current trading positions");
-    return portfolio.positions();
+  @Tool(name = "current_portfolio", description = "Returns the current portfolio")
+  public Portfolio currentPortfolio(ToolContext toolContext) {
+    LOGGER.info("returning current portfolio {}", portfolio);
+    return portfolio;
   }
 
   @Tool(
