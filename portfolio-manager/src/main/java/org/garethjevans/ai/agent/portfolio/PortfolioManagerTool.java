@@ -42,7 +42,20 @@ public class PortfolioManagerTool {
       description = "Returns the current trading positions of this portfolio")
   public List<Portfolio.Position> currentPositions(ToolContext toolContext) {
     LOGGER.info("returning current trading positions");
-    return portfolio.all();
+    return portfolio.positions();
+  }
+
+  @Tool(
+      name = "current_price_for_ticker",
+      description = "Returns the current price for this ticker")
+  public BigDecimal currentPrice(
+      @ToolParam(description = "The ticker to return the price for") String ticker,
+      ToolContext toolContext) {
+    LOGGER.info("returning current price for {}", ticker);
+
+    RiskManager.Analysis riskData = riskManager.analyseRisk(ticker);
+
+    return riskData.currentPrice();
   }
 
   @Tool(
@@ -271,7 +284,7 @@ public class PortfolioManagerTool {
                 "portfolio_cash",
                 portfolio.cash().toString(),
                 "portfolio_positions",
-                toJson(portfolio.all()),
+                toJson(portfolio.positions()),
                 "margin_requirement",
                 portfolio.marginRequirement().toString(),
                 "total_margin_used",
