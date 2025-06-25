@@ -472,7 +472,7 @@ public class AgentWarrenBuffettTool {
                 exchange.loggingNotification(
                     McpSchema.LoggingMessageNotification.builder()
                         .level(McpSchema.LoggingLevel.INFO)
-                        .data("Generating " + AGENT_NAME + " output")
+                        .data("Generating " + AGENT_NAME + " output for " + ticker)
                         .build());
 
                 if (exchange.getClientCapabilities().sampling() != null) {
@@ -503,7 +503,7 @@ public class AgentWarrenBuffettTool {
                 exchange.loggingNotification(
                     McpSchema.LoggingMessageNotification.builder()
                         .level(McpSchema.LoggingLevel.INFO)
-                        .data(AGENT_NAME + " Finished")
+                        .data(AGENT_NAME + " Finished for " + ticker)
                         .build());
               });
 
