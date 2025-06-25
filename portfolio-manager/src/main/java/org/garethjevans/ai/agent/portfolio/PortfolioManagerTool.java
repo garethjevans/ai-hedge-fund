@@ -43,18 +43,18 @@ public class PortfolioManagerTool {
     return portfolio;
   }
 
-  @Tool(
-      name = "current_price_for_ticker",
-      description = "Returns the current price for this ticker")
-  public BigDecimal currentPrice(
-      @ToolParam(description = "The ticker to return the price for") String ticker,
-      ToolContext toolContext) {
-    LOGGER.info("returning current price for {}", ticker);
-
-    RiskManager.Analysis riskData = riskManager.analyseRisk(ticker);
-
-    return riskData.currentPrice();
-  }
+  //  @Tool(
+  //      name = "current_price_for_ticker",
+  //      description = "Returns the current price for this ticker")
+  //  public BigDecimal currentPrice(
+  //      @ToolParam(description = "The ticker to return the price for") String ticker,
+  //      ToolContext toolContext) {
+  //    LOGGER.info("returning current price for {}", ticker);
+  //
+  //    RiskManager.Analysis riskData = riskManager.analyseRisk(ticker);
+  //
+  //    return riskData.currentPrice();
+  //  }
 
   @Tool(
       name = "generate_trading_recommendations",

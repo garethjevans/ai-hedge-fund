@@ -51,4 +51,21 @@ public class Portfolio {
   }
 
   public record Position(String ticker, BigDecimal longPosition, BigDecimal shortPosition) {}
+
+  @Override
+  public String toString() {
+    return "Portfolio["
+        + "cash="
+        + cash
+        + ","
+        + "marginRequirement="
+        + marginRequirement
+        + ","
+        + "marginUsed="
+        + marginUsed
+        + ","
+        + "positions="
+        + positions
+        + "]";
+  }
 }

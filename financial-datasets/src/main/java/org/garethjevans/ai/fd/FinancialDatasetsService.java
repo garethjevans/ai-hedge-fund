@@ -53,13 +53,13 @@ public class FinancialDatasetsService {
 
   private void logRequest(HttpRequest request, byte[] body) {
     LOGGER.debug("Request: {} {}", request.getMethod(), request.getURI());
-    // logHeaders(request.getHeaders());
     if (body != null && body.length > 0) {
       LOGGER.debug("Request body: {}", new String(body, StandardCharsets.UTF_8));
     }
   }
 
   private <T> T cacheAwareGet(Class<T> type, String uri, Object... uriVariables) {
+    long start = System.currentTimeMillis();
     String cacheableUri = UriComponentsBuilder.fromUriString(uri).build(uriVariables).toString();
     LOGGER.debug("cacheable uri: {}", cacheableUri);
 
@@ -88,10 +88,17 @@ public class FinancialDatasetsService {
     } catch (JsonProcessingException e) {
       LOGGER.warn("Unable to persist response to cache", e);
     }
+
+    long end = System.currentTimeMillis();
+    long duration = end - start;
+    if (duration > 500) {
+      LOGGER.warn("Slow Request: Took {} ms to GET {}", duration, uri);
+    }
     return t;
   }
 
   private <T> T cacheAwarePost(Class<T> type, Object body, String uri, Object... uriVariables) {
+    long start = System.currentTimeMillis();
     String cacheableUri = UriComponentsBuilder.fromUriString(uri).build(uriVariables).toString();
 
     String jsonBody = null;
@@ -130,6 +137,12 @@ public class FinancialDatasetsService {
       cacheService.save(cacheKey, mapper.writeValueAsString(t));
     } catch (JsonProcessingException e) {
       LOGGER.warn("Unable to persist response to cache", e);
+    }
+
+    long end = System.currentTimeMillis();
+    long duration = end - start;
+    if (duration > 500) {
+      LOGGER.warn("Slow Request: Took {} ms to POST {}", duration, uri);
     }
 
     return t;
@@ -238,6 +251,10 @@ public class FinancialDatasetsService {
       all.addAll(batch);
 
       if (batch.size() < limit) {
+        more = false;
+      }
+
+      if (all.size() >= limit) {
         more = false;
       }
 
