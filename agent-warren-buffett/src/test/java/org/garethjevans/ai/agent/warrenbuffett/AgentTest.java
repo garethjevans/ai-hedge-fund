@@ -13,7 +13,6 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
-import org.springframework.ai.mcp.client.autoconfigure.McpClientAutoConfiguration;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -28,7 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
       "spring.ai.mcp.client.type=SYNC"
     })
 @EnabledIfEnvironmentVariable(named = "OPENAI_KEY", matches = ".+")
-@EnableAutoConfiguration(exclude = {McpClientAutoConfiguration.class})
+@EnableAutoConfiguration
 public class AgentTest {
 
   @Autowired private ChatModel model;
